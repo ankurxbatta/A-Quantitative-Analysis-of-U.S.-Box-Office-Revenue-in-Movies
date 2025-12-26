@@ -1,0 +1,117 @@
+---
+title: "Confidence Interval"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-05-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Activity: Compare z with t when C=0.95, n=5.
+
+```{r}
+C=0.95
+n=100
+alpha=1-C
+z=qnorm(1-alpha/2,0,1)
+z
+
+t=qt(1-alpha/2,n-1)
+t
+
+```
+
+
+
+
+## Confidence Interval for a Population Mean: Normal (z) Statistic
+
+
+Suppose the average final scores of 10 randomly selected students is 75%. Calculate the 90% confidence interval for the average of final scores of all students with the known standard deviation of 5%. Assume the Normality of the population. 
+
+
+```{r}
+
+se=5/sqrt(10)
+z= qnorm()
+library(mosaic)
+mosaic::xcnorm(.9)
+c( -  *,  + *)
+CI=75+c(-1,1)*z*se
+print(CI)
+
+
+```
+or using the following function:
+```{r}
+norm.interval = function(xbar,sigma,n, conf.level )
+  {z = qnorm((1 - conf.level)/2, lower.tail = FALSE)
+   c(xbar - z * sigma/sqrt(n), xbar + z * sigma/sqrt(n))}
+
+norm.interval(75,5,10,.90)
+```
+## Confidence Interval using a dataset (large sample or $\sigma$ is known)
+Example 1.7.1 Refer to Example 1.11 from the textbook. (Data set: ATTENTIMES)
+```{r}
+ ATTENTIMES <-read.csv("ATTENTIMES.csv", header=TRUE)
+attach( ATTENTIMES)
+View(ATTENTIMES)
+head( ATTENTIMES)
+summary(ATTENTIMES)
+```
+Large-Sample Normal (z)Statistic:
+```{r}
+
+norm.interval = function(Attention.Time, variance = var(Attention.Time), conf.level = 0.99)
+  {z = qnorm((1 - conf.level)/2, lower.tail = FALSE)
+   xbar = mean(Attention.Time)
+   sdx = sqrt(variance/length(Attention.Time))
+   c(xbar - z * sdx, xbar + z * sdx)}
+
+norm.interval(Attention.Time)
+
+```
+Or using the formula:
+
+```{r}
+xbar=mean(Attention.Time)
+seA=sd(Attention.Time)/sqrt(length(Attention.Time))
+z=qnorm(.995)
+CIAttention=xbar+c(-1,1)*z*seA
+print(CIAttention)
+```
+
+Or using z.test code:
+```{r}
+#install.packages("BSDA")
+library(BSDA)
+z.test(Attention.Time, alternative='two.sided', 
+       mu=mean(Attention.Time), sigma.x=sd(Attention.Time),
+       conf.level=.99)
+
+```
+Since sigma is not known it is recommended to use t-test:
+
+```{r}
+t.test()
+
+detach(ATTENTIMES)
+```
+## Confidence Interval for a Population Mean: (t)- Statistic (small sample or $\sigma$ is unknown)
+
+Example 1.7.2 Refer to Example 1.12 from the textbook. (Data set: CILICA)
+
+```{r}
+SILICA <-read.csv("SILICA.txt", header=TRUE)
+attach( SILICA)
+View(SILICA)
+head( SILICA)
+summary(SILICA)
+t.test()
+detach(SILICA)
+```
+
+

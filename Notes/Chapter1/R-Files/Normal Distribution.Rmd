@@ -1,0 +1,95 @@
+---
+title: "Normal Distribution"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-05-09"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Normal Probability
+
+Final scores are normally distributed with the mean of 80% and standard deviation of 5%.
+
+$X\sim N(\mu=80, \sigma =5)$
+
+Calculate the probability that a randomly selected student scored 60% or lower.
+
+$P1=P(X\leq 60)$
+
+```{r}
+
+P1=pnorm(60,80,5)
+
+print(P1)
+#library(mosaic)
+mosaic::xpnorm(60,80,5)
+```
+Calculate the probability that a randomly selected student scored between 60% and 80%.
+
+$P2=P(60 \leq X\leq80)$
+```{r}
+P2= pnorm(80,80,5)-pnorm(60,80,5)
+print(P2)
+mosaic::xpnorm(c(60,80), 80,5)
+```
+Calculate:
+
+$P(z>z_{\frac{\alpha}{2}})=0.05$
+```{r}
+Z1= qnorm(0.95)
+print(Z1)
+mosaic::xqnorm(0.95)
+
+```
+Calculate the minimum final score of a student who wishes be in the top 1% of the class.
+
+$P(z>z_{\alpha})=0.01$
+```{r}
+S= qnorm(0.99, 80, 5)
+print(S)
+mosaic::xqnorm(0.99,80,5)
+```
+85% of students are scored between 63.59% and x%. Calculate x score.
+
+PP1=$P(z<63.59)$
+```{r}
+PP1= pnorm(63.59, 80, 5)
+print(PP1)
+Answer=qnorm(PP1+0.85,80,5)
+print(Answer)
+PP2=1-(PP1+.85)
+print(PP2)
+PP3=1-PP2
+mosaic::xqnorm(c(PP1,PP3),80,5)
+```
+Consider 10 randomly selected students. What is the chance the their average final scores is below 72%.
+
+
+$\bar{x}\sim N(\mu=80, \sigma =5)$
+
+
+$PAV=P(\bar{x}<72)$
+
+```{r}
+
+PAV=pnorm(72,80,5/sqrt(10))
+
+print(PAV)
+#library(mosaic)
+mosaic::xpnorm(72,80,5/sqrt(10))
+```
+Practice the following RCodes:
+```{r}
+mosaic::xpnorm(c(-1.96,1.96))
+
+mosaic::xpnorm(c(165,175),170,10)
+
+mosaic::xqnorm(c(0.025,0.025))
+
+mosaic::xcnorm(.8)
+
+```

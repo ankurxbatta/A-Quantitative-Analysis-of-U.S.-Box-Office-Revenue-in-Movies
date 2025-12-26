@@ -1,0 +1,106 @@
+---
+title: "Chapter 6"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-07-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Example 6.2.1 
+
+Refer to Example 4.10 (p. 217 from the text book) and the multiple regression model for executive salary. Data set: EXECSAL2
+
+
+Use scatter-plot-matrix to plot the sample data. Interpret the plots.
+
+```{r}
+EXECSAL2 <-read.table("EXECSAL2.txt", header=TRUE)
+View(EXECSAL2)
+attach(EXECSAL2)
+head(EXECSAL2)
+#
+pairs(~Y+X1+X2+X4+X5+X7+X8+X10,data = EXECSAL2, 
+      main="Scatterplot Matrix of EXECSAL2")
+
+```
+
+a) Use stepwise regression to decide which of the 10 variables should be included in the building of the final model for the natural log of executive salaries.
+
+```{r}
+#install.packages("leaps")
+library(leaps)
+library(MASS)
+##Model with All variables
+M1=lm(Y~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10)
+summary(M1)
+
+# stepwise regression
+step(lm(Y~.,data=EXECSAL2[-1]),direction="both")
+
+##or using library(MASS)
+
+stepAIC(lm(Y~.,data=EXECSAL2[-1]),direction="both")
+```
+
+
+# Forward selection
+
+
+```{r}
+
+
+mint <- lm(Y~1,data=EXECSAL2)
+forwardAIC <- step(mint,scope=list(lower=~1, 
+                                   upper=~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10),
+                   direction="forward", data=EXECSAL2)
+
+#or
+
+forwardAIC1 <- step(mint,scope=formula(M1),
+                   direction="forward", data=EXECSAL2)
+
+forwardAIC1$coefficients
+forwardAIC$coefficients
+forwardAIC1$anova
+forwardAIC$anova
+
+```
+
+# Backward Elimination
+
+```{r}
+
+
+step(lm(Y~.,data=EXECSAL2[-1]),direction="backward")
+
+```
+
+```{r}
+##Best Subset
+
+X <- cbind(X1,X2,X3,X4,X5,X6,X7,X8,X9,X10)
+
+#or EXECSAL2[-1]
+Model=regsubsets(as.matrix(X),Y, nvmax = 10)
+
+summary(Model)
+
+#or
+Model=regsubsets(Y~X1+X2+X3+X4+X5+X6+X7+X8+X9+X10,data=EXECSAL2, nvmax = 10)
+summary(Model)
+
+SUM=summary(Model)
+names(SUM)
+Rsq=SUM$rsq
+CP=SUM$cp
+AdRsq=SUM$adjr2
+BIC=SUM$bic
+RSS=SUM$rss
+
+CP
+
+```

@@ -1,0 +1,238 @@
+---
+title: "Inferences About the Difference Between Two Population Means"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-03-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## DIETS
+
+
+Example 1.9.1 Refer to Example 1.16 from the textbook. (Data set: DIETS).
+
+a) Form a 95% confidence interval for the difference between the population mean weight losses for the two diets. Interpret the result.
+
+```{r }
+DIETS <-read.csv("DIETS.csv", header=TRUE)
+attach(DIETS)
+View(DIETS)
+head(DIETS)
+mean(WTLOSS[DIET==])
+summary(DIETS)
+#side-by-side box plots
+boxplot()
+#Labeling 5 number summaries
+A=tapply(WTLOSS, DIET,fivenum)
+for(i in 1:length(A)){
+        text(x=i+0.35,y= A[[i]],labels= A[[i]], pos = 4, offset = 0.7, col = "green")}
+```
+
+## a) 95% confidence interval 
+
+```{r}
+
+TEST=t.test()
+
+TEST
+
+df=TEST$parameter
+print(df)
+
+#CI (when REGULAR is the first sample)
+
+t.test()
+```
+
+
+## Summary Statistics for each group
+
+
+```{r}
+library(mosaic)
+favstats(WTLOSS~DIET)
+#or
+tapply(WTLOSS,DIET,IQR)
+```
+
+## b) Test of Hypothesis
+
+$H_0: \mu_1 -\mu_2 = 0$ or  $\mu_1  =\mu_2$               
+
+$H_a:  \mu_1 -\mu_2 > 0$ or  $\mu_1 > \mu_2$  
+```{r}
+#Test_Independent_Samples 
+
+test=t.test()
+test
+```
+Graph the rejection region and find the critical value.
+
+```{r}
+library(mosaic)
+
+mosaic::xqt(0.95,df)
+
+#Critical Value
+
+print(qt(0.95,df))
+
+#install.packages("gginference")
+library(gginference)
+ggttest(test)
+detach(DIETS)
+```
+
+
+
+## Pooled t-test
+
+READING
+
+Example 1.9.2 Refer to Example 1.17 from the textbook. (Data set: READING) (Independent samples)
+
+```{r }
+READING <-read.csv("READING.csv", header=TRUE)
+attach(READING)
+View(READING)
+head(READING)
+summary(READING)
+
+```
+a) Use the data in the table to test whether the true mean test scores differ for the new method and the standard method. 
+## a) Test of Hypothesis
+$H_0: \mu_1 -\mu_2 = 0$ or  $\mu_1  =\mu_2$               
+
+$H_a:  \mu_1 -\mu_2 \ne 0$ or  $\mu_1 \ne \mu_2$
+
+
+## Checking the Conditions 
+
+```{r }
+#side-by-side box plots
+boxplot(SCORE~METHOD)
+library(mosaic)
+favstats(SCORE~METHOD) 
+
+```
+
+
+```{r}
+#Q-Q Plots
+par(mfrow=c(1,2))
+qqnorm(SCORE[METHOD=="NEW"], main="Normal Q-Q Plot for NEW")
+qqline(SCORE[METHOD=="NEW"])
+qqnorm(SCORE[METHOD=="STD"], main="Normal Q-Q Plot for STD")
+qqline(SCORE[METHOD=="STD"])
+```
+```{r}
+#Test_Independent_Samples_Equal variances_Pooled t-test
+
+test=t.test()
+test
+
+```
+Graph the rejection region and find the critical value(s).
+
+```{r}
+library(mosaic)
+
+
+mosaic::xct(0.95,20)
+#Critical Values
+
+c(-1,1)*qt(.975,20)
+
+library(gginference)
+ggttest(test)
+
+detach(READING)
+```
+
+## Paired Difference Experiment
+
+
+Example 1.9.3 Data set: PAIRED shows the data on reading test scores for eight pairs of slow learners with similar reading IQs of which one member is randomly assigned to the standard teaching method while the other is assigned to the new method.
+
+
+
+```{r }
+PAIRED<- read.csv("PAIRED.csv", header=TRUE)
+
+attach(PAIRED)
+head(PAIRED)
+```
+## a) Test of Hypothesis
+$H_0: \mu_d = 0$ or  $\mu_1 -\mu_2 = 0$               
+
+$H_a: \mu_d > 0$ or  $\mu_1 -\mu_2 > 0$  
+```{r}
+test=t.test(NEW, STANDARD, conf.level=0.95, alternative = c("greater"), paired=TRUE)
+
+```
+Graph the rejection region and find the critical value.
+
+```{r}
+library(mosaic)
+
+
+mosaic::xqt(0.95,7)
+#Critical Value
+
+print(qt(.95,7))
+
+library(gginference)
+ggttest(test)
+
+detach(PAIRED)
+```
+## Comparing Two Population Variances_F Test
+
+ Example 1.10.1 Refer to Example 1.18 from the textbook. (Data set: READING)
+ 
+ The use of the t statistic was based on the assumption that the population variances of the test scores were equal for the two methods. Conduct a test of hypothesis to check this assumption at $\alpha = .10$.
+```{r }
+READING <- read.csv("READING.csv")
+attach(READING)
+head(READING)
+
+```
+
+```{r }
+library(mosaic)
+favstats() 
+var.test()
+
+
+
+```
+Graph the rejection region and find the critical value.
+
+```{r}
+library(mosaic)
+mosaic::xqf(0.95,11,9)
+#Critical Value
+
+print(qf(.95,11,9))
+
+
+
+detach(READING)
+```
+
+
+Example 1.9.1 Refer to Example 1.16 from the textbook. (Data set: DIETS).
+ The use of the t statistic was based on the assumption that the population variances of the test scores were not equal for the two diets. Conduct a test of hypothesis to check this assumption at $\alpha = .10$.
+
+
+```{r }
+DIETS <- read.csv("DIETS.csv")
+attach(DIETS)
+head(DIETS)
+var.test()
+```
+

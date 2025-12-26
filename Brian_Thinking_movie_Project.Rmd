@@ -1,0 +1,170 @@
+---
+title: "DANA4810"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**
+```{r}
+## Load the Dataset
+movies <- read.csv('Movie.csv')
+View(movies)
+head(movies)
+attach(movies)
+```
+
+```{r}
+pairs(~USRevenue+Budget+Opening+Theaters,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Budget+Opening+Theaters+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies Complete") #to see multicollinearity 
+library(PerformanceAnalytics)
+
+chart.Correlation(movies[,c("USRevenue","Budget","Opening","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+```
+## After visualize scatterplot and correlation, we saw correlation between variables.
+
+
+
+
+
+## Create the full model with all variables
+```{r}
+model1 <- lm(USRevenue ~ Budget + Opening + Theaters + Ratings + Review + Minutes + Genre + Rating + Sequel, data=movies)
+summary(model1)
+```
+#Base-level: Genre = Action/Adventure, Rating = G
+
+
+## Remove Budget and review
+```{r}
+# model only numerical
+model2 <- lm(USRevenue ~ Opening + Theaters + Ratings + Minutes, data = movies)
+summary(model2)
+
+
+model3 <- lm(USRevenue ~ Opening + Theaters + Ratings, data = movies)
+summary(model3)
+
+anova(model3, model2)
+```
+
+```{r}
+model4 <- lm(USRevenue ~ Opening+ Ratings, data = movies)
+summary(model4)
+```
+
+```{r}
+model5 <- lm(USRevenue ~ Opening+I(Ratings^2), data = movies)
+summary(model5)
+```
+
+```{r}
+anova(model5, model1)
+```
+
+
+##Use model5 for now
+
+
+```{r}
+#model add one categorical at a time
+
+model6 <- lm(USRevenue ~ Opening + I(Ratings^2)+ Genre , data = movies)
+summary(model6)
+```
+##
+
+```{r}
+library(dplyr)
+dummymovies <- movies %>%
+  mutate(
+    G1 = ifelse(Genre == 'Animation',1,0),
+    G2 = ifelse(Genre == 'Comedy',1,0)
+  )
+
+detach(movies)
+attach(dummymovies)
+```
+
+
+```{r}
+model7 <- lm(USRevenue ~ Opening + I(Ratings^2)+ G1+G2, data = dummymovies)
+summary(model7)
+```
+## Add rating
+```{r}
+model8 <- lm(USRevenue ~ Opening + I(Ratings^2)+ Rating, data = dummymovies)
+summary(model8)
+```
+```{r}
+dummymovies1 <- dummymovies %>%
+  mutate(
+    R1 = ifelse(Rating == 'PG-13',1,0),
+    R2 = ifelse(Rating == 'R',1,0)
+  )
+
+detach(dummymovies)
+attach(dummymovies1)
+```
+
+```{r}
+model9 <- lm(USRevenue ~ Opening + I(Ratings^2)+ R1+R2, data = dummymovies1)
+summary(model9)
+```
+
+## add Gerne = Animation,Comedy, Rating = PG-13, R
+```{r}
+model10 <- lm(USRevenue ~ Opening + I(Ratings^2)+ G1+G2+R1+R2, data = dummymovies1)
+summary(model10)
+```
+### now animation is not significance
+```{r}
+model11 <- lm(USRevenue ~ Opening + I(Ratings^2)+G2+R1+R2, data = dummymovies1)
+summary(model11)
+```
+# Add sequel
+```{r}
+model12 <- lm(USRevenue ~ Opening + I(Ratings^2)+G2+R1+R2+Sequel, data = dummymovies1)
+summary(model12)
+```
+## Interaction term
+```{r}
+model13 <- lm(USRevenue ~ Opening + I(Ratings^2)+Opening*G2+R1+R2, data = dummymovies1)
+summary(model13)
+```
+
+```{r}
+dummymovies1$USReleaseMonth <- sub("^[0-9]+-", "", dummymovies1$USRelease)
+model14 <- lm(USRevenue ~ Opening + I(Ratings^2)+Opening*G2+R1+R2+USReleaseMonth, data = dummymovies1)
+summary(model14)
+```
+
+```{r}
+anova(model13, model14)
+```
+## I think USRelease is not significance for being  a predictor.
+
+## Try to add Theaters
+```{r}
+model15 <- lm(USRevenue ~ Opening+Theaters + I(Ratings^2)+Opening*G2+R1+R2, data = dummymovies1)
+summary(model15)
+
+model15 <- lm(USRevenue ~ Opening+Theaters+I(Theaters^2) + I(Ratings^2)+Opening*G2+R1+R2, data = dummymovies1)
+summary(model15)
+```
+## I think Theater still not significance.
+
+###For Final Model : Model13 is the best so far.
+
+
+
+

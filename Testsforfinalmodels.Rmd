@@ -1,0 +1,445 @@
+---
+title: "4810 Final Model Testing"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-data, include=FALSE}
+# Load the dataset
+movies <- read.csv('Movie.csv')
+movies <- head(movies, -1)
+options(scipen = 999)
+
+# Create derived variables
+movies$c <- ifelse(movies$Genre == "Comedy", 1, 0)
+movies$highrate <- ifelse(movies$Rating %in% c("PG-13", "R"), 1, 0)
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+movies$jun <- ifelse(movies$USReleaseMonth == "Jun", 1, 0)
+```
+
+```{r}
+model_after_movie_release= lm(USRevenue~Opening+Ratings+I(Ratings^2)+highrate+c, data=movies)
+summary(model_after_movie_release)
+```
+**Observation:** Ratings and Ratings^2 are not significant
+```{r}
+model_after_movie_releaseb= lm(USRevenue~Opening+Ratings+highrate+c, data=movies)
+summary(model_after_movie_releaseb)
+```
+**Observation:** Removing Ratings^2 made all the values significant, while keeping Adjusted R-squared high.
+
+#lets take a look at the relationship betwen Ratings and Revenue just to confirm the relationship 
+```{r}
+plot(movies$Ratings, movies$USRevenue)
+```
+**Observation:** It looks slightly curvilinear to me
+#lets test the quadratic terms
+
+$H_0$: \beta3=0
+$H_a$: \beta3 \neq 0
+```{r}
+model_after_movie_releaseb= lm(USRevenue~Opening+Ratings+highrate+c, data=movies)
+summary(model_after_movie_releaseb)
+model_after_movie_release= lm(USRevenue~Opening+Ratings+I(Ratings^2)+highrate+c, data=movies)
+anova(model_after_movie_releaseb, model_after_movie_release)
+```
+**Test Statistic:** F=1.694
+**p-value:** p-value=0.2009
+**Decision:** Since the p-value = 0.2009 > 0.01, we fail to reject H0.
+**Conclusion:** At %1 level of significance, there is insufficient evidence to indicate that the quadratic term for Ratings is useful predictors of USRevenue, y, and we accept model_after_movie_releaseb, without quadratic terms, as the better model.
+
+#compare a couple other models, just to make sure
+
+#NEED HO AND HA HERE!!!
+```{r}
+model28 = lm(USRevenue ~ Opening + Ratings + highrate + c + jun , data = movies)
+summary(model28)
+model29 <- lm(USRevenue ~ Opening + Ratings + highrate + c + jun + Theaters + I(Theaters^2)*Opening , data = movies)
+summary(model29)
+anova(model28, model29)
+```
+**Test Statistic:** F=3.1466
+**p-value:** p-value=0.03718
+**Decision:** Since the p-value = 0.03718 < 0.05, we reject the H0.
+**Conclusion:** At %5 level of significance, there is sufficient evidence to indicate that that theatres and the quadratic interaction of theatres with opening are useful predictors of USRevenue, y, and we accept model29 as the better model.
+
+#now lets test or final two models: which will be better?
+```{r}
+anova(model_after_movie_releaseb, model29)
+```
+
+```{r}
+library(car)
+vif(model_after_movie_releaseb)
+vif(model29, type='predictor')
+
+```
+
+```{r}
+AIC(model_after_movie_releaseb, model29)
+BIC(model_after_movie_releaseb, model29)
+summary(model_after_movie_releaseb)
+summary(model29)
+```
+```{r}
+summary(model_after_movie_releaseb)
+summary(model29)
+model_simplified2 = lm(USRevenue ~ Opening + Ratings + highrate + c + jun+ Opening*Theaters, data = movies)
+summary(model_simplified2)
+vif(model_simplified2)
+```
+```{r}
+anova(model_simplified2,model29)
+```
+```{r}
+anova(model_after_movie_releaseb,model_simplified2)
+```
+```{r}
+
+#install.packages("Hmisc")
+library(Hmisc)
+X = cbind(
+  movies$Opening,
+  movies$Ratings,
+  movies$highrate,
+  movies$c,
+  movies$jun,
+  movies$Theaters
+)
+rcorr(X, type="pearson")
+```
+
+# Residual Analysis for Final Models
+```{r}
+summary(residuals(model_simplified2))
+```
+## Residual Plots for model_simplified2
+
+```{r}
+# Residuals vs Fitted Values
+plot(x=fitted(model_simplified2), y=residuals(model_simplified2), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model_simplified2)", xlim=c(0, 400), ylim=c(-50, 50),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+s_simp2 <- summary(model_simplified2)$sigma
+abline(h=2*s_simp2, lty="dashed", col="green")
+abline(h=-2*s_simp2, lty="dashed", col="green")
+abline(h=3*s_simp2, lty="dashed", col="black")
+abline(h=-3*s_simp2, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*s_simp2, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*s_simp2, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*s_simp2, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*s_simp2, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+```
+
+```{r}
+# Residuals vs Opening
+range(movies$Opening)
+range(residuals(model_simplified2))
+plot(x=movies$Opening, y=residuals(model_simplified2), 
+     xlab = "Opening Weekend Revenue", ylab = "Residuals", 
+     main = "Residuals vs Opening (model_simplified2)", xlim = c(0, 120) , ylim = c(-30,40) ,
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+abline(h=2*s_simp2, lty="dashed", col="green")
+abline(h=-2*s_simp2, lty="dashed", col="green")
+```
+
+```{r}
+# Residuals vs Theaters
+plot(x=movies$Theaters, y=residuals(model_simplified2), 
+     xlab = "Number of Theaters", ylab = "Residuals", 
+     main = "Residuals vs Theaters (model_simplified2)", xlim = c(1950, 5000) , ylim = c(-30,40) ,
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+abline(h=2*s_simp2, lty="dashed", col="green")
+abline(h=-2*s_simp2, lty="dashed", col="green")
+identify(y=residuals(model_simplified2), x=movies$Theaters)
+```
+
+```{r}
+# Diagnostic plots (4-panel)
+par(mfrow=c(2,2))
+plot(model_simplified2)
+par(mfrow=c(1,1))
+```
+
+## Standardized Residuals and Outlier Detection
+
+```{r}
+# Standardized residuals for model29
+plot(y=rstandard(model_simplified2), x=fitted(model_simplified2),
+     xlab = "Fitted Values", ylab = "Standardized Residuals", 
+     main = "Standardized Residuals vs Fitted Values (model_simplified2)",xlim = c(-50,400) , ylim = c(-4,4) ,
+     pch=19, col="blue")
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="green")
+identify(y=rstandard(model_simplified2), x=fitted(model_simplified2))
+movies[5,]
+```
+```{r}
+hist(residuals(model_simplified2))
+```
+
+
+```{r}
+# Check for outliers (|standardized residual| > 3)
+outliers_model_simplified2 <- which(abs(rstandard(model_simplified2)) > 3)
+if(length(outliers_model_simplified2) > 0) {
+  cat("Potential outliers in model_simplified2 (observations):", outliers_model_simplified2, "\n")
+  print(movies[outliers_model_simplified2, ])
+} else {
+  cat("No extreme outliers detected in model_simplified2 (|standardized residual| > 3)\n")
+}
+```
+
+## Influence Diagnostics for model29
+
+```{r}
+# Calculate influence measures
+n <- nrow(movies)
+p <- length(coef(model_simplified2))
+leverage <- hatvalues(model_simplified2)
+StanRes <- rstandard(model_simplified2)
+cd <- cooks.distance(model_simplified2)
+Rstudent <- rstudent(model_simplified2)
+
+# Cutoffs
+#cutL <- 2*p/n  # Leverage cutoff
+#cutCD <- 4/(n-p-1)  # Cook's Distance cutoff
+
+# Create influence diagnostics table
+influence_table <- data.frame(
+  Observation = 1:n,
+  USRevenue = movies$USRevenue,
+  Leverage = round(leverage, 3),
+  StanRes = round(StanRes, 3),
+  CooksD = round(cd, 3),
+  Rstudent = round(Rstudent, 3)
+)
+
+print(influence_table)
+
+# Show influential observations
+#influential <- influence_table[leverage > cutL | cd > cutCD, ]
+#if(nrow(influential) > 0) {
+ # cat("\nInfluential Observations:\n")
+ # print(influential)
+#} else {
+ # cat("\nNo influential observations detected.\n")
+#}
+```
+
+```{r}
+# Cook's Distance plot
+plot(cd, main="Cook's Distance (model_simplified2)", 
+     xlab="Observation", ylab="Cook's Distance",
+     pch=19, col="blue")
+abline(h=cutCD, lty="dashed", col="red")
+text(x=1, y=cutCD, labels="Cutoff", pos=3, col="red")
+```
+
+```{r}
+# Leverage plot
+plot(leverage, main="Leverage (model_simplified2)", 
+     xlab="Observation", ylab="Leverage",
+     pch=19, col="blue")
+abline(h=cutL, lty="dashed", col="red")
+text(x=1, y=cutL, labels="Cutoff", pos=3, col="red")
+```
+
+## Partial Residual Plots
+
+```{r}
+# Partial residual plots for model_simplified2
+#library(car)
+#crPlots(model_simplified2)
+```
+
+## Normality Check
+
+```{r}
+# Q-Q plot for model29
+qqnorm(residuals(model_simplified2), main = "Normal Q-Q Plot (model_simplified2)")
+qqline(residuals(model_simplified2), col="red")
+```
+
+```{r}
+# Histogram of residuals
+hist(residuals(model_simplified2), main="Histogram of Residuals (model_simplified2)", 
+     xlab="Residuals", col="lightblue", breaks=20)
+```
+#We need to address heteroscacisity and multicollinearity 
+```{r}
+model_simplified2 = lm(USRevenue ~ Opening + Ratings + highrate + c + jun+ Opening*Theaters, data = movies)
+modelsimp3= lm(USRevenue ~Opening+Ratings + highrate + jun, data = movies)
+summary(modelsimp3)
+anova(modelsimp3,model_simplified2)
+```
+
+**Interpretation:** anova test is saying that model_simplified2 is better, however, since all values are significant on model3simp, we should see if the residual plots are better, and if heterscacisity is addressed. 
+```{r}
+# Residuals vs Fitted Values
+plot(x=fitted(modelsimp3), y=residuals(modelsimp3), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (modelsimp3)", xlim=c(0, 400), ylim=c(-50, 50),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+s_simp3 <- summary(modelsimp3)$sigma
+abline(h=2*s_simp3, lty="dashed", col="green")
+abline(h=-2*s_simp3, lty="dashed", col="green")
+abline(h=3*s_simp3, lty="dashed", col="black")
+abline(h=-3*s_simp3, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*s_simp3, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*s_simp3, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*s_simp3, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*s_simp3, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+```
+
+#transform y variables 
+```{r}
+USRevenueln= log(movies$USRevenue)
+modelsimp3transformed= lm(USRevenueln ~Opening+Ratings + Opening*Theaters, data = movies)
+summary(modelsimp3transformed)
+```
+
+
+```{r}
+# Residuals vs Fitted Values
+plot(x=fitted(modelsimp3transformed), y=residuals(modelsimp3transformed), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (modelsimp3)", xlim=c(2, 7), ylim=c(-1, 1),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+s_simp3tr <- summary(modelsimp3)$sigma
+abline(h=2*s_simp3tr, lty="dashed", col="green")
+abline(h=-2*s_simp3tr, lty="dashed", col="green")
+abline(h=3*s_simp3tr, lty="dashed", col="black")
+abline(h=-3*s_simp3tr, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*s_simp3tr, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*s_simp3tr, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*s_simp3tr, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*s_simp3tr, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+```
+
+
+```{r}
+```
+
+
+```{r}
+model_simplified2 = lm(USRevenue ~ Opening + Ratings + highrate + c + jun+ Opening*Theaters, data = movies)
+modelsimp3= lm(USRevenue ~Opening+Ratings + highrate + jun, data = movies)
+summary(modelsimp3)
+USRevenueln= log(movies$USRevenue)
+modelsimp3transformed= lm(USRevenueln ~Opening+Ratings + Opening*Theaters, data = movies)
+summary(modelsimp3transformed)
+anova(modelsimp3,model_simplified2)
+```
+
+
+```{r}
+anova(modelsimp3transformed,model_simplified2)
+```
+```{r}
+model_simplified2ln = lm(USRevenueln ~ Opening + Ratings + highrate + c + jun+ Opening*Theaters, data = movies)
+anova(modelsimp3transformed,model_simplified2ln)
+```
+
+
+```{r}
+vif(modelsimp3transformed)
+vif(model_simplified2ln)
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+

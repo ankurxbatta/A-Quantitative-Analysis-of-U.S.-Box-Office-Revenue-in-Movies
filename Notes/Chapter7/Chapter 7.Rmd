@@ -1,0 +1,148 @@
+---
+title: "Chapter 7"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-06-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+
+x=c(5,5,5,5,5,5,5)
+
+y=c(2,3,6,4,5,6,7)
+
+A=data.frame(cbind(y,x))
+m=lm(y~x, data=A)
+summary(m)
+
+cor(x,y)
+
+```
+
+What is the problem in model above?
+
+# Example 7.4.1 
+
+Refer to Example 7.5 from the text book. Data set: FTCCIGAR
+
+First, we use the scatter-plot-matrix to plot the sample data and fit the model to the data set.
+
+```{r}
+FTCCIGAR <-read.table("FTCCIGAR.txt", header=TRUE)
+View(FTCCIGAR)
+attach(FTCCIGAR)
+head(FTCCIGAR)
+#option 1
+pairs(~CO+TAR+NICOTINE+WEIGHT,data = FTCCIGAR, 
+      main="Scatterplot Matrix of FTC cigarette data")
+#option 2
+#install.packages("GGally")
+library("GGally")
+p2=ggpairs(data=FTCCIGAR,title=paste0("Matrix Scatterplot"),
+        progress=FALSE)+
+  theme_bw()
+p2
+model1=lm(CO~TAR+NICOTINE+WEIGHT,data = FTCCIGAR)
+summary(model1)
+anova(model1)
+```
+
+# Creating a sample correlations matrix
+
+#Pearson Correlation
+
+```{r}
+
+#install.packages("Hmisc")
+library(Hmisc)
+X=cbind(TAR,NICOTINE,WEIGHT)
+
+rcorr(X, type="pearson")
+#Or
+cor(X)
+```
+
+The following output shows the variance inflation factors for each of the three parameters.
+
+```{r}
+#vif(model1)
+#install.packages("car")
+
+library(car)
+
+vif(model1)
+
+```
+
+Model 2 without Nicotine.
+
+```{r}
+model2=lm(CO~TAR+WEIGHT,data = FTCCIGAR)
+summary(model2)
+anova(model2)
+vif(model2)
+
+#Model 3
+
+model3=lm(CO~TAR,data = FTCCIGAR)
+summary(model3)
+anova(model3)
+
+detach(FTCCIGAR)
+
+```
+
+
+#Example 7.6.1 
+
+Refer to Example 7.8 from the text book. Data set: COFFEE
+
+```{r}
+COFFEE <-read.table("COFFEE.txt", header=TRUE)
+View(COFFEE)
+attach(COFFEE)
+head(COFFEE)
+plot(x=PRICE, y=DEMAND, ylim = c(600,1300), xlim = c(3, 3.9), pch=19, col="blue", 
+     main="Demand vs. Price", xlab = "Price (in dollars)", ylab="Weekly Demand (in pounds)")
+
+```
+
+
+a) Previous research by the supermarket chain indicates that weekly demand (y) decreases with price (p), but at a decreasing rate. 
+
+Fit the model to the data, letting $X = 1/p$.
+
+```{r}
+#X=1/PRICE
+Model1=lm(DEMAND~X, data=COFFEE)
+summary(Model1)
+```
+
+Add the fitted model to the scatter plot:
+
+```{r}
+##Adding the curve
+range(PRICE)
+P<- seq(3,3.7,0.001)
+plot(x=PRICE, y=DEMAND, ylim = c(600,1300), xlim = c(3, 3.9), pch=19, col="blue", 
+     main="Demand vs. Price", xlab = "Price (in dollars)", ylab="Weekly Demand (in pounds)")
+lines(P,predict(Model1,newdata=data.frame(X=P^(-1))),col="red" )
+
+```
+
+(c) Find a 95\% confidence interval for the mean demand when the price is set at \$3.20 per pound. Interpret this interval.
+
+
+```{r}
+
+New=data.frame(X=c(1/3.2))
+predict(Model1, newdata=New, interval="confidence", level=0.95)
+```
+

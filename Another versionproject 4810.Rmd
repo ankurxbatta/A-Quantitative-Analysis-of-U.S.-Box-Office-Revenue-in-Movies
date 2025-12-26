@@ -1,0 +1,417 @@
+---
+title: "Catherine Project"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, results='hide'}
+# Load the dataset
+movies <- read.csv('Movie.csv')
+movies <- head(movies, -1)
+options(scipen = 999)
+```
+
+```{r}
+# Display first few rows
+head(movies)
+```
+
+```{r}
+# Display summary statistics
+summary(movies)
+```
+
+
+```{r}
+pairs(~USRevenue+Budget+Opening+Theaters,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Budget+Opening+Theaters+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies Complete") #to see multicollinearity 
+library(PerformanceAnalytics)
+
+chart.Correlation(movies[,c("USRevenue","Budget","Opening","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+```
+
+#Checking for trends of categorical variables vs USRevenue
+```{r}
+aggregate(USRevenue ~ Sequel, data = movies, mean)
+aggregate(USRevenue ~ Genre, data = movies, mean)
+aggregate(USRevenue ~ Rating, data = movies, mean)
+```
+
+#Bar plot for categorical variables vs Mean of USRevenue
+```{r}
+library(ggplot2)
+library(dplyr)
+
+#Sequel
+movies %>%
+  group_by(Sequel) %>%
+  summarize(mean_rev = mean(USRevenue, na.rm = TRUE)) %>%
+  ggplot(aes(x = Sequel, y = mean_rev, fill = Sequel)) +
+  geom_col() +
+  labs(title = "Mean US Revenue by Sequel",
+       x = "Sequel",
+       y = "Mean US Revenue") +
+  theme_minimal()
+
+#Genre
+movies %>%
+  group_by(Genre) %>%
+  summarize(mean_rev = mean(USRevenue, na.rm = TRUE)) %>%
+  ggplot(aes(x = Genre, y = mean_rev, fill = Genre)) +
+  geom_col() +
+  labs(title = "Mean US Revenue by Genre",
+       x = "Genre",
+       y = "Mean US Revenue") +
+  theme_minimal()
+
+#Rating
+movies %>%
+  group_by(Rating) %>%
+  summarize(mean_rev = mean(USRevenue, na.rm = TRUE)) %>%
+  ggplot(aes(x = Rating, y = mean_rev, fill = Rating)) +
+  geom_col() +
+  labs(title = "Mean US Revenue by Rating",
+       x = "Rating",
+       y = "Mean US Revenue") +
+  theme_minimal()
+
+```
+
+
+
+```{r}
+names(movies)
+
+Genre   <- factor(movies$Genre)
+Rating <- factor(movies$Rating)
+s <- ifelse(movies$Sequel == 1, 1, 0)
+
+model55 = lm(USRevenue~Budget+Opening+Theaters+Ratings+Minutes+s+factor(Genre)+factor(Rating), data=movies)
+summary(model55)
+```
+
+
+
+
+```{r}
+model54 = lm(USRevenue~s+factor(Genre)+factor(Rating), data=movies)
+summary(model54)
+```
+
+
+```{r}
+model53 = lm(USRevenue~factor(Rating), data=movies)
+summary(model53)
+
+model52 = lm(USRevenue~s, data=movies)
+summary(model52)
+
+model51 = lm(USRevenue~factor(Genre), data=movies)
+summary(model51)
+```
+
+
+```{r}
+model50 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating), data=movies)
+summary(model50)
+
+model49 = lm(USRevenue~Opening+Ratings+factor(Rating), data=movies)
+summary(model49)
+
+#model50 better with Ratings^2
+```
+
+
+#Now add some variables back in: We will add comedy because in the original model55 with most of the variables, the factor(Genre)Comedy was the only significant one 
+```{r}
+movies$c <- ifelse(movies$Genre == "Comedy", 1, 0)
+model48 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model48)
+```
+
+#Verify that Comedy category is in fact associated with higher revenue (this code was already done earlier)
+```{r}
+aggregate(USRevenue ~ Genre, data = movies, mean)
+```
+
+
+#What if we change the Genre to Animation or other?
+#need to try with action
+```{r}
+movies$a <- ifelse(movies$Genre == "Animation", 1, 0)
+model47 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating)+a, data=movies)
+summary(model47)
+```
+
+
+#Animation not significant, so go back to comedy and add other variables 
+```{r}
+model46 = lm(USRevenue~Budget+Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model46)
+
+model45 = lm(USRevenue~Theaters+Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model45)
+```
+
+
+
+```{r}
+movies$highrate <- ifelse(movies$Rating %in% c("PG-13", "R"),1, 0)
+model44 = lm(USRevenue~Budget+Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model44)
+```
+#Start trying interaction
+```{r}
+model43= lm(USRevenue~Budget+Theaters+Opening+I(Ratings^2)+highrate+c+Theaters*Budget, data=movies)
+summary(model43)
+```
+
+
+```{r}
+model42= lm(USRevenue~I(Theaters^2)+Opening+I(Ratings^2)+highrate+c+I(Theaters^2)*Opening, data=movies)
+summary(model42)
+```
+**Interpretation of model42:** This is the highest Adjusted R-squared yet at .9624, which is about .0034 higher than the model below. Should we go for simplicity or slightly higher adjusted R-squared?
+
+```{r}
+model41 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model41)
+```
+
+
+```{r}
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+model40 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c+USReleaseMonth, data=movies)
+summary(model40)
+
+movies$jun <- ifelse(movies$USReleaseMonth == "Jun", 1, 0)
+model39 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c+jun, data=movies)
+summary(model39)
+# Bin Opening weekend revenue so interaction.plot has a categorical x-axis without mutating movies
+opening_bins <- cut(
+      movies$Opening,
+      breaks = quantile(movies$Opening, probs = seq(0, 1, 0.25), na.rm = TRUE),
+      include.lowest = TRUE
+)
+
+
+```
+
+
+```{r}
+# Explicitly test Rating^2 interactions with key indicators
+model37   <- lm(USRevenue ~ Opening + I(Ratings^2)*c + highrate + jun, data = movies)
+model36 <- lm(USRevenue ~ Opening + I(Ratings^2)*jun + highrate + c, data = movies)
+model35  <- lm(USRevenue ~ Opening + I(Ratings^2)*highrate + c + jun, data = movies)
+
+summary(model37)
+summary(model36)
+summary(model35)
+
+# Compare against additive baseline (no interactions)
+model_base <- lm(USRevenue ~ Opening + I(Ratings^2) + highrate + c + jun, data = movies)
+anova(model_base, model35)
+anova(model_base, model36)
+anova(model_base, model37)
+```
+
+
+
+```{r}
+library(car)
+vif(model39)
+
+anova(model39)
+
+```
+
+
+```{r}
+anova(model39, model40)
+
+model38 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model38)
+```
+
+
+```{r}
+anova(model38, model39)
+```
+
+```{r}
+anova(model38, model39)
+```
+
+Ankur - Hey all, I checked the pairplot and find out there is a quadratic relation between usrevenue and Theaters so I added the theater term after doing that I also checked for the interaction 
+
+```{r}
+
+# Best model
+model35 <- lm(USRevenue ~ Theaters + I(Theaters^2) + Opening + Ratings + I(Ratings^2) + highrate + c + I(Theaters^2)*Opening + jun + jun*Opening, data = movies)
+summary(model35)
+
+anova(model38, model35)
+
+```
+
+## Just in case remove Interaction jun and opening
+```{r}
+model34 <- lm(USRevenue ~ Theaters + I(Theaters^2) + Opening + Ratings + I(Ratings^2) + highrate + c + I(Theaters^2)*Opening + jun, data = movies)
+summary(model34)
+```
+
+
+```{r}
+anova(model34, model35)
+```
+**Conclusion: After all works which we worked so far, we will use model34 as a USRevenue predictor.**
+
+
+At least square equation:
+
+$E(y) = \beta_0 + \beta_1x_1+\beta_2x_1^2+\beta_3x_2+\beta_4x_3+\beta_5x_3^2+\beta_6x_4+\beta_7x_5+\beta_8x_1^2x_2+\beta_9x_6$
+$x_1 = Theaters$, $x_2 = Opening$, $x_3 = Ratings$, $x_4 = Highrate$, $x_5 = Comedy$, $x_6 = June$
+
+##Model checking
+
+Global test - usefulness of the model
+
+$H_0: \beta_1 = \beta_2 ... = \beta_k = 0$
+$H_a:$ At least one $\beta_i \neq 0$
+
+```{r}
+summary(model34)
+```
+**Test Statistic: 141.4**
+**p-value : 0.00000000000000022**
+**Conclusion: Since p-value < $\alpha = 0.05$, we reject $H_0$.**
+**Interpretation: At 5% level of significance, we have strong evidence to conclude that the model is useful to predicting the USRevenue.**
+
+To determine whether the curvilinear terms should be included in the model or not, we test:
+
+$H_0: \beta_2 = \beta_5 = \beta_8= 0$
+
+$H_a:$ At least one of the curvature $\beta$'s is nonzero.
+```{r}
+# Reduced model - remove quadratic, keep interaction terms
+model34Red <- lm(USRevenue ~ Theaters + Opening + Ratings + highrate + c + jun +  I(Theaters^2)*Opening , data = movies)
+summary(model34Red)
+anova(model38, model34Red)
+```
+
+```{r}
+anova(model34Red, model34)
+```
+Since the p-value = 0.1689 > 0.05, we fail to reject $H_0$
+
+At 5% level of significance, there is insufficient evidence to indicate that the curvature terms are useful predictor of USRevenue
+
+
+**Final decision: ** We will use model34Red (Simpler model) to predict USRevenue.
+
+Fitted model:
+$\widehat{USRevenue} = 38.67 -0.06593Theaters+3.822Opening+9.470Ratings-29.332150highrate+13.977comedy-0.0000001Theaters^2Opening+20.696June$
+
+```{r}
+model30 <- lm(USRevenue ~ Opening, data = movies)
+summary(model30)
+```
+
+
+```{r} 
+#Just some experimen.
+##Check muiticolinearity
+#library(car)
+#vif(model34Red, type = "predictor")
+
+#model34Reds <- lm(USRevenue ~ Theaters + Opening + Ratings + highrate + c + jun, data = movies)
+#summary(model34Reds)
+
+#vif(model34Reds, type = "predictor")
+
+#There are no multicolinearity.
+
+#
+#model33 <- lm(USRevenue ~Opening + Ratings + highrate + c, data = movies)
+#summary(model33)
+
+```
+
+
+##Estimation and Prediction
+
+```{r}
+range(movies$Opening, na.rm = TRUE)
+range(movies$Ratings, na.rm = TRUE)
+range(movies$Theaters, na.rm=TRUE)
+New = data.frame(Theaters=c(3169),Opening=c(30.69), Ratings=c(6.4), highrate=c(1),c = c(1), jun=c(1))
+## Opening = 30.69, Ratings = 6.4, Highrate, and comedy
+CI = predict(model34Red, newdata=New, interval="confidence", level=0.95)
+CI
+PI = predict(model34Red, newdata=New, interval="prediction", level=0.95)
+PI
+```
+
+**Interpretation:**
+For CI: We are 95% confident that the average USRevenue for all movies with these characteristics falls between \$US105.16 millions dollars and \$US135.96 millions dollars.(Giving opening's weekend revenue = $30.69, Theaters = 3169, Ratings = 6.4 Genre = comedy , highrate and released date in June)
+
+
+For PI: With 95% confidence, we predict the USRevenue of new movies with these characteristics will fall between \$US89.10 millions dollars and \$US152.01 millions dollars.
+
+```{r}
+anova(model30, model38)
+```
+
+```{r}
+model29 <- lm(USRevenue ~ Opening + Ratings + highrate + c + jun + Theaters + I(Theaters^2)*Opening , data = movies)
+summary(model29)
+model28 = lm(USRevenue ~ Opening + Ratings + highrate + c + jun , data = movies)
+summary(model28)
+anova(model28, model29)
+```
+
+```{r}
+model5 <- lm(USRevenue ~ Budget + Theaters + Budget * Theaters +Ratings + Review + Minutes + Sequel, data=movies)
+summary(model5)
+
+model6 = lm(USRevenue ~ Budget + Theaters + Budget * Theaters + Ratings  + Sequel , data=movies)
+summary(model6)
+
+```
+
+```{r}
+model7 = lm(WorldRevenue ~ Budget * Theaters + Ratings  + Sequel , data=movies)
+summary(model7)
+```
+
+
+
+```{r}
+model38 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model38)
+model38b= lm(USRevenue~Opening+Ratings+I(Ratings^2)+highrate+c, data=movies)
+summary(model38b)
+anova(model38, model38b)
+```
+
+```{r}
+model10 <- lm(USRevenue ~ Budget:Theaters^2 + Ratings + c, data=movies)
+summary(model10)
+model11 <- lm(USRevenue ~ Budget + Theaters + I(Theaters^2) + Budget*I(Theaters^2) + Ratings + c, data=movies)
+summary(model11)
+anova(model10, model11)
+```
+

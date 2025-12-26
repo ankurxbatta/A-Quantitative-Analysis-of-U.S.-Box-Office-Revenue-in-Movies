@@ -1,0 +1,321 @@
+---
+title: "4810 Final Model Testing"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-26"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load-data, include=FALSE}
+# Load the dataset
+movies <- read.csv('Movie.csv')
+movies <- head(movies, -1)
+options(scipen = 999)
+
+# Create derived variables
+movies$c <- ifelse(movies$Genre == "Comedy", 1, 0)
+movies$highrate <- ifelse(movies$Rating %in% c("PG-13", "R"), 1, 0)
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+movies$jun <- ifelse(movies$USReleaseMonth == "Jun", 1, 0)
+```
+
+```{r}
+#chart.Correlation(movies[,c("USRevenue","Budget","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+```
+
+
+#NEED HO AND HA HERE!!!
+```{r}
+model11 <- lm(USRevenue ~ Budget + Theaters + I(Theaters^2) + Budget*Theaters^2 + Ratings + c, data=movies)
+summary(model11)
+model10 <- lm(USRevenue ~ Budget + Theaters + I(Theaters^2) + Budget*Theaters^2 + Ratings+ I(Ratings^2) + c, data=movies)
+summary(model10)
+anova(model11, model10)
+```
+
+**Test Statistic:** F = 31.27
+**p-value:** p-value=0.0000000000001819
+**Decision:** Since the p-value = 0.0000000000001819 < 0.05, we reject the H0.
+**Conclusion:** At %5 level of significance, there is sufficient evidence to indicate that that Ratings^2 is useful predictors of USRevenue, y, and we accept model10 as the better model.
+
+```{r}
+library(car)
+vif(model10, type='predictor')
+
+```
+
+```{r}
+model_new <- lm(USRevenue ~ Budget + Theaters + Ratings + Minutes + c + I(Theaters^2) + Budget*Theaters + Ratings*c + Minutes*c, data=movies)
+summary(model_new)
+```
+
+```{r}
+anova(model10, model_new)
+```
+
+```{r}
+library(car)
+vif(model_new, type='predictor')
+```
+
+
+```{r}
+model_simplified <- lm(USRevenue ~ Budget + Theaters + Ratings + c + I(Theaters^2) + Budget*Theaters, data=movies)
+summary(model_simplified)
+```
+```{r}
+anova(model_simplified, model_new)
+```
+```{r}
+vif(model_simplified, type='predictor')
+```
+
+
+```{r}
+model9 <- lm(USRevenue ~ Budget + Theaters +  c, data=movies)
+summary(model9)
+vif(model9)
+```
+
+```{r}
+AIC(model_simplified, model_new)
+BIC(model_simplified, model_new)
+```
+
+
+```{r}
+
+#install.packages("Hmisc")
+#library(Hmisc)
+X = cbind(
+  movies$Budget,
+  movies$Ratings,
+  movies$c,
+  movies$Minutes,
+  movies$Theaters
+)
+rcorr(X, type="pearson")
+```
+
+```{r}
+model_simplified <- lm(USRevenue ~ Budget + Theaters + Ratings + c + I(Theaters^2) + Budget*Theaters, data=movies)
+summary(model_simplified)
+```
+
+```{r}
+model_new3 <- lm(USRevenue ~ Budget + Theaters + I(Theaters^2) + Ratings + Review + Minutes + Budget*Theaters + c, data=movies)
+summary(model_new)
+```
+
+```{r}
+anova(model_new3, model_new)
+```
+
+```{r}
+library(car)
+vif(model_new, type='predictor')
+
+```
+
+# Residual Analysis for Final Models
+
+## Residual Plots for model_new
+
+```{r}
+# Residuals vs Fitted Values
+plot(x=fitted(model_new), y=residuals(model_new), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model_new)", xlim=c(0, 400), ylim=c(-70, 70),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+s_simp2 <- summary(model_new)$sigma
+abline(h=2*s_simp2, lty="dashed", col="green")
+abline(h=-2*s_simp2, lty="dashed", col="green")
+```
+
+```{r}
+# Residuals vs Opening
+plot(x=movies$Opening, y=residuals(model_new), 
+     xlab = "Opening Weekend Revenue", ylab = "Residuals", 
+     main = "Residuals vs Opening (model_new)",
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+```
+
+```{r}
+# Residuals vs Theaters
+plot(x=movies$Theaters, y=residuals(model_new), 
+     xlab = "Number of Theaters", ylab = "Residuals", 
+     main = "Residuals vs Theaters (model_new)",
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+```
+
+```{r}
+# Diagnostic plots (4-panel)
+par(mfrow=c(2,2))
+plot(model_new)
+par(mfrow=c(1,1))
+```
+
+## Standardized Residuals and Outlier Detection
+
+```{r}
+# Standardized residuals for model_new
+plot(y=rstandard(model_new), x=fitted(model_new),
+     xlab = "Fitted Values", ylab = "Standardized Residuals", 
+     main = "Standardized Residuals vs Fitted Values (model_new)",
+     pch=19, col="blue")
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="green")
+```
+
+```{r}
+# Check for outliers (|standardized residual| > 3)
+outliers_model_new <- which(abs(rstandard(model_new)) > 3)
+if(length(outliers_model_new) > 0) {
+  cat("Potential outliers in model_new (observations):", outliers_model_new, "\n")
+  print(movies[outliers_model_new, ])
+} else {
+  cat("No extreme outliers detected in model_new (|standardized residual| > 3)\n")
+}
+```
+
+## Influence Diagnostics for model_new
+
+```{r}
+# Calculate influence measures
+n <- nrow(movies)
+p <- length(coef(model_new))
+leverage <- hatvalues(model_new)
+StanRes <- rstandard(model_new)
+cd <- cooks.distance(model_new)
+Rstudent <- rstudent(model_new)
+
+# Cutoffs
+cutL <- 2*p/n  # Leverage cutoff
+cutCD <- 4/(n-p-1)  # Cook's Distance cutoff
+
+# Create influence diagnostics table
+influence_table <- data.frame(
+  Observation = 1:n,
+  USRevenue = movies$USRevenue,
+  Leverage = round(leverage, 3),
+  StanRes = round(StanRes, 3),
+  CooksD = round(cd, 3),
+  Rstudent = round(Rstudent, 3)
+)
+
+# Show influential observations
+influential <- influence_table[leverage > cutL | cd > cutCD, ]
+if(nrow(influential) > 0) {
+  cat("\nInfluential Observations:\n")
+  print(influential)
+} else {
+  cat("\nNo influential observations detected.\n")
+}
+```
+
+```{r}
+# Cook's Distance plot
+plot(cd, main="Cook's Distance (model_new)", 
+     xlab="Observation", ylab="Cook's Distance",
+     pch=19, col="blue")
+abline(h=cutCD, lty="dashed", col="red")
+text(x=1, y=cutCD, labels="Cutoff", pos=3, col="red")
+```
+
+```{r}
+# Leverage plot
+plot(leverage, main="Leverage (model_new)", 
+     xlab="Observation", ylab="Leverage",
+     pch=19, col="blue")
+abline(h=cutL, lty="dashed", col="red")
+text(x=1, y=cutL, labels="Cutoff", pos=3, col="red")
+```
+
+## Partial Residual Plots
+
+```{r}
+# Partial residual plots for model_new
+#library(car)
+#crPlots(model_new)
+```
+
+## Normality Check
+
+```{r}
+# Q-Q plot for model_new
+qqnorm(residuals(model_new), main = "Normal Q-Q Plot (model_new)")
+qqline(residuals(model_new), col="red")
+```
+
+```{r}
+# Histogram of residuals
+hist(residuals(model_new), main="Histogram of Residuals (model_new)", 
+     xlab="Residuals", col="lightblue", breaks=20)
+```
+
+```{r}
+model_new <- lm(USRevenue ~ Budget + Theaters + Ratings + Minutes + c + I(Theaters^2) + Budget*Theaters + Ratings*c + Minutes*c, data=movies)
+model_newer = lm(USRevenue ~ Budget+ Theaters + Ratings, data=movies)
+summary(model_newer)
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+

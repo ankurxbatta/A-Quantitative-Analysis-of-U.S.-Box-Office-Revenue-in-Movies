@@ -1,0 +1,198 @@
+---
+title: "Movie Dataset Analysis Project"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Explanation of Objective and Dataset
+
+The objective of this analysis is to explore the Movie.csv dataset and build predictive models for movie success metrics, such as worldwide revenue or ratings, based on various movie attributes. The dataset contains information about movies released in 2013, including financial data, ratings, and other characteristics.
+
+The dataset includes the following variables:
+- Title: Movie title
+- USRelease: Release date in US
+- Genre: Movie genre
+- Rating: MPAA rating (PG-13, R, etc.)
+- Sequel: Whether it's a sequel (0/1)
+- Budget: Production budget in millions
+- Opening: Opening weekend revenue in millions
+- USRevenue: US box office revenue in millions
+- Theaters: Number of theaters
+- IntRevenue: International revenue in millions -- exclude this one
+- WorldRevenue: Worldwide revenue in millions
+- Ratings: Average rating (out of 10)
+- Review: Percentage of positive reviews
+- Minutes: Movie runtime in minutes
+
+```{r}
+# Load the dataset
+movies <- read.csv("Movie.csv")
+head(movies)
+summary(movies)
+```
+
+## EDA (Exploratory Data Analysis)
+
+Let's start by examining the structure and basic statistics of the dataset.
+
+```{r}
+str(movies)
+```
+
+
+```{r}
+pairs(~USRevenue+Budget+Opening+Theaters,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Budget+Opening+Theaters+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies Complete") #to see multi-collinearity 
+library(PerformanceAnalytics)
+
+chart.Correlation(movies[,c("USRevenue","Budget","Opening","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+
+```
+Lets look at variables we think are correlated (multi-collinearity)
+```{r}
+#Reviews and Ratings (R is 0.80, and reviews and ratings are very similar concepts) 
+
+
+
+```
+
+Now, let's look at the distribution of key variables.
+```{r}
+# Histograms of numerical variables
+par(mfrow=c(2,3))
+hist(movies$Budget, main="Budget Distribution", xlab="Budget ($M)")
+hist(movies$WorldRevenue, main="World Revenue Distribution", xlab="Revenue ($M)")
+hist(movies$Ratings, main="Ratings Distribution", xlab="Rating")
+hist(movies$Review, main="Review Distribution", xlab="Review %")
+hist(movies$Minutes, main="Runtime Distribution", xlab="Minutes")
+hist(movies$Theaters, main="Theaters Distribution", xlab="Number of Theaters")
+```
+
+Let's examine the categorical variables.
+
+```{r}
+# Bar plots for categorical variables
+par(mfrow=c(1,2))
+barplot(table(movies$Genre), main="Genre Distribution", las=2)
+barplot(table(movies$Rating), main="Rating Distribution")
+```
+
+## Testing/Models
+
+### Scatterplots and Visual Representations of Data
+
+Let's create scatterplot matrices to visualize relationships between variables.
+
+```{r}
+# Select numerical variables for correlation analysis
+num_vars <- movies[,c("Budget", "USRevenue", "Theaters", "Ratings", "Minutes")]
+pairs(num_vars, main="Scatterplot Matrix of Numerical Variables")
+```
+
+Let's also look at correlations.
+
+```{r}
+library(PerformanceAnalytics)
+chart.Correlation(num_vars, histogram=FALSE, pch=19)
+```
+
+### Deciding Which Variables Should Be Included
+
+Based on the scatterplots and correlations, we can see strong relationships between:
+- Budget and revenues (Opening, USRevenue, WorldRevenue)
+- Theaters and revenues
+- Ratings and Review percentage
+
+For modeling WorldRevenue, we'll consider Budget, Theaters, Ratings, Review, Minutes, and Sequel as predictors.
+
+Let's build several models and compare them.
+
+```{r}
+# Model 1: Simple linear model with Budget
+model1 <- lm(WorldRevenue ~ Budget, data=movies)
+summary(model1)
+
+# Model 2: Add Theaters
+model2 <- lm(WorldRevenue ~ Budget + Theaters, data=movies)
+summary(model2)
+
+# Model 3: Add Ratings and Review
+model3 <- lm(WorldRevenue ~ Budget + Theaters + Ratings + Review, data=movies)
+summary(model3)
+
+# Model 4: Add Minutes and Sequel
+model4 <- lm(WorldRevenue ~ Budget + Theaters + Ratings + Review + Minutes + Sequel, data=movies)
+summary(model4)
+
+# Model 5: Interaction between Budget and Theaters
+model5 <- lm(WorldRevenue ~ Budget * Theaters + Ratings + Review + Minutes + Sequel, data=movies)
+summary(model5)
+
+# test model - to teach Brian
+
+
+```
+
+Let's use stepwise regression to find the best subset of variables.
+
+```{r}
+library(MASS)
+# Stepwise regression
+step_model <- stepAIC(lm(WorldRevenue ~ Budget + Theaters + Ratings + Review + Minutes + Sequel, data=movies), direction="both")
+summary(step_model)
+```
+
+## Interpretations
+
+From the models above, we can see that:
+
+- Budget has a strong positive relationship with WorldRevenue
+- Number of Theaters also positively impacts revenue
+- Higher Ratings and Review percentages tend to correlate with higher revenue
+- Sequels may have an advantage in revenue generation
+
+The stepwise model suggests that all variables except Minutes are significant predictors.
+
+Let's check model diagnostics for the best model.
+
+```{r}
+# Residual plots for the stepwise model
+par(mfrow=c(2,2))
+plot(step_model)
+```
+
+## Conclusion
+
+The analysis shows that movie revenue can be reasonably predicted using budget, number of theaters, ratings, review percentage, and whether it's a sequel. The models explain a significant portion of the variance in worldwide revenue.
+
+## The Model We Liked the Best
+
+The stepwise regression model (step_model) is our preferred model as it automatically selected the most significant predictors and achieved good R-squared values with parsimony.
+
+## Room and Area for Improvement
+
+### Improvements in Our Work:
+- Could try polynomial terms or transformations for non-linear relationships
+- Consider categorical variables like Genre and Rating in more detail (dummy coding)
+- Use cross-validation to assess model stability
+- Try other modeling techniques like random forests or neural networks
+
+### Improvements for the Dataset:
+- More recent data (2013 is quite old for movie analysis)
+- Additional variables like director, actors, marketing budget
+- Social media metrics, pre-release buzz
+- More detailed genre classifications
+- International market breakdowns
+- Streaming revenue data (though not relevant for 2013)

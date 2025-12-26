@@ -1,0 +1,571 @@
+---
+title: "Chapter 8"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-07-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Example 8.2.1
+
+Refer to Example 8.1 from the textbook, data set: OLYMPIC. Consider a regression model relating cholesterol level $y$ to fat intake $x$. Calculate the regression residuals for
+
+Scatterplot of cholesterol level versus fat intake:
+
+```{r}
+
+
+OLYMPIC<-read.table("OLYMPIC.txt", header=TRUE)
+attach(OLYMPIC)
+head(OLYMPIC)
+
+plot( x= FAT,y= CHOLESTEROL, main="Cholesterol  vs. Saturated fat",
+      pch=19, col="blue",
+      xlab = "Average daily intake of saturated fat (in milligrams)", 
+      ylab = " Level of cholesterol (in milligrams per liter)",  ylim = c(800, 2200),  
+      xlim = c(1000, 3000))
+```
+
+a.  the straight-line (first-order) model
+
+The RStudio printout for the regression analysis of the first-order model:
+
+```{r}
+model1=lm(CHOLESTEROL~FAT,data = OLYMPIC)
+summary(model1)
+residuals(model1)
+summary(residuals(model1))
+anova(model1)
+
+```
+
+b.  the quadratic (second-order) model
+
+The RStudio printout for the regression analysis of the second-order model
+
+```{r}
+
+model2=lm(CHOLESTEROL~FAT + I(FAT^2),data = OLYMPIC)
+summary(model2)
+summary(residuals(model2))
+anova(model2)
+
+residuals(model2)
+summary(residuals(model1))
+```
+
+Scatterplot with the two fitted models:
+
+```{r}
+
+plot( x= FAT,y= CHOLESTEROL, main="Cholesterol  vs. Saturated fat",
+      pch=19, col="blue",
+      xlab = "Average daily intake of saturated fat (in milligrams)", 
+      ylab = " Level of cholesterol (in milligrams per liter)",  ylim = c(800, 2200),  
+      xlim = c(1000, 3000))
+
+abline(lm(CHOLESTEROL~FAT), col="Green", lty=1, lwd=2)
+range(FAT)
+QUAD<- seq(1200,2930,0.1)
+
+lines(QUAD,predict(model2,newdata=data.frame(FAT=QUAD)),col="red")
+legend("topleft", legend = c("Linear", "Quadratic"),pch=19, col = c("Green", "Red"))
+
+
+```
+
+## Example 8.3.1
+
+Plot the residuals for model 1 for Example 8.2.1 against fat intake (placing $x$ along the horizontal axis).
+
+a)  What does the plot suggest about a potential lack of fit of the first-order model? How would you modify the model?
+
+```{r}
+##Residuals plot
+plot(x=FAT, y=residuals(model1), 
+     xlab = "Average daily intake of saturated fat (in milligrams)", ylab = "Residulas", 
+     main = "Residual Plot",xlim=c(1100, 3000), ylim=c(-300, 200),pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+```
+
+b)  Construct a residual plot for model 2 similar to the one in part a. What does the plot suggest about the fit of the quadratic model?
+
+```{r}
+##Residuals plot
+plot(x=FAT, y=residuals(model2), 
+     xlab = "Average daily intake of saturated fat (in milligrams)", ylab = "Residulas", 
+     main = "Residual Plot",xlim=c(1100, 3000), ylim=c(-300, 200),pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+s=summary(model2)$sigma
+
+abline(h=2*s, lty="dashed", col="green")
+abline(h=-2*s, lty="dashed", col="green")
+
+text(x = 900, 
+       y = 2*s, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 900, 
+     y = -2*s, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+
+```
+
+See the following plots:
+
+```{r}
+
+### Diagnostic plots including normal Q–Q plot, standardized residuals against leverage   
+par(mfrow=c(2,2))
+plot(model2)
+par(mfrow=c(2,2))
+plot(model1)
+##Partial Residual plots
+library(car)
+
+crPlots(model1)
+crPlots(model2)
+
+```
+
+## Example 8.3.2
+
+Refer to Example 8.4 from the text book. Data set: COFFEE2
+
+```{r}
+
+COFFEE2 <- read.delim("COFFEE2.txt")
+attach(COFFEE2)
+head(COFFEE2)
+```
+
+$y =$ weekly demand for a house brand of coffee at supermarket chain stores (in pounds)
+
+$x_1=$ price p (in dollars/pound)
+
+```{=tex}
+\begin{equation}
+  x_2 =
+  \begin{cases}
+      1 & \text{if advertisment used}\\
+      0 & \text{ifnot} 
+    \end{cases}
+  \end{equation}
+```
+Consider the following model:
+
+$E(y) = \beta_0 + \beta_1x_1+\beta_2x_2$
+
+(a) Fit the model to the data. Is the model adequate for predicting weekly demand $y$?
+
+```{r}
+Model1=lm(DEMAND~PRICE+AD)
+summary(Model1)
+anova(Model1)
+
+```
+
+$H_0:\beta_1 = \beta_2 = 0$
+
+$H_a:$ at least one $\beta \neq 0$
+
+**Test statistics= 373.7**
+
+**p-value = 5.568e-16**
+
+**Decision:** Reject $H_0$.
+
+**Conclusion:** The model contributes information for the prediction of weekly demand, $y$.
+
+(b) Plot the residuals versus $p$. Do you detect any trends?
+
+```{r}
+##Residuals plot
+plot(x=PRICE, y=residuals(Model1), 
+     xlab = "Price (in dollars/pound) ", ylab = "Residuals", 
+     main = "Residuals vs. Price",xlim=c(2.5, 5.5), ylim=c(-60, 100),pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+```
+
+(c) Construct a partial residual plot for the independent variable p. What does the plot reveal?
+
+```{r}
+##Partial Residuals
+
+partialRes=resid(Model1,type="partial")
+head(partialRes)
+
+###Partial Residual plots
+termplot(Model1, partial.resid = TRUE,terms = "PRICE", col.res = "blue")
+lm.P=lm(partialRes[,1]~PRICE)
+coef(summary(lm.P))
+
+##or
+library(car)
+
+crPlots(Model1)
+
+```
+
+(d) Fit the model $E(y) = \beta_0 + \beta_1x_1+\beta_2x_2$, where $x_1 = 1/p$ . Has the predictive ability of the model improved?
+
+```{r}
+##Transformation
+x1=1/PRICE
+
+Model2=lm(DEMAND~x1+AD)
+summary(Model2)
+
+###Partial Residual plots
+termplot(Model2, partial.resid = TRUE,terms = "x1", col.res = "blue")
+crPlots(Model2)
+
+
+```
+
+## Residual Plot for Model 2
+
+```{r}
+##Residuals plot
+
+range(x1)
+plot(x=x1, y=residuals(Model2), 
+     xlab = "1/Price ", ylab = "Residuals", 
+     main = "Residuals vs. Price",xlim=c(0.18,0.39), ylim=c(-60, 100),pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+```
+
+## Example 8.4.1
+
+Refer to Example 8.5 from the text book. Data set: SOCWORK
+
+a)  Fit the second-order model and the first order model to the the data, create a scatterplot of the data points, and a residual plot against $\hat(y)$ and interpret the results.
+
+$y$ = Salary (\$)
+
+$x =$ Years of Experience
+
+```{r}
+
+SOCWORK = read.table("SOCWORK.txt", header=TRUE)
+attach(SOCWORK)
+head(SOCWORK)
+```
+
+```{r}
+
+par(mfrow=c(1,2))
+plot( x= EXP,y= SALARY, main="Salary  vs. Years of Experience",
+      pch=19, col="blue",
+      xlab = "Experience (in years)", 
+      ylab = " Salary (in dollars)",  ylim = c(10000, 110000),  
+      xlim = c(0, 30))
+Model4=lm(SALARY~EXP+I(EXP^2))
+summary(Model4)
+
+plot(x=fitted(Model4), y=residuals(Model4), 
+     xlab = "Fitted Values ", ylab = "Residuals", 
+     main = "Residuals vs. Fitted values; Quadratic Model",xlim=c(20000, 85000), ylim=c(-20000, 25000),
+     pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+```
+
+Fit a first order model:
+
+```{r}
+
+ModelFirst=lm(SALARY~EXP)
+summary(ModelFirst)
+
+plot(x=fitted(ModelFirst), y=residuals(ModelFirst), 
+     xlab = "Fitted Values ", ylab = "Residuals", 
+     main = "Residuals vs. Fitted values; Model First",
+     pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+```
+
+b)  Use the natural log transformation on the dependent variable, and relate $ln(y)$ to years of experience, $x$, using the second-order model:
+
+$ln(y) = \beta_0+\beta_1x+\beta_2x^2+ \epsilon$
+
+```{r}
+##ln(y)
+y=log(SALARY)
+Model5=lm(y~EXP+I(EXP^2))
+summary(Model5)
+
+```
+
+The residual plot,below, indicates that the logarithmic transformation has significantly reduced the heteroscedasticity.
+
+RStudio residual plot for second-order model of natural log of salary.
+
+```{r}
+plot(x=fitted(Model5), y=residuals(Model5), 
+     xlab = "Fitted Values ", ylab = "Residuals", 
+     main = "Residuals vs. Fitted values (y=log(salary))",xlim=c(9.8, 11.4), ylim=c(-0.5, 0.5),
+     pch=19, col="blue" )
+abline(h=0, lty="dashed", col="red")
+
+```
+
+c)  Create a residual plot for first-order model of natural log of salary.
+
+```{r}
+##ln(y) first order model
+Model6=lm(y~EXP)
+summary(Model6)
+plot(x=fitted(Model6), y=residuals(Model6), 
+     xlab = "Fitted Values ", ylab = "Residuals", 
+     main = "Residuals vs. Fitted values (y=log(salary))",
+     pch=19, col="blue",xlim=c(9.8, 11.3), ylim=c(-0.5, 0.5) )
+abline(h=0, lty="dashed", col="red")
+
+
+```
+
+d)  Check the Normality assumption for both models.
+
+**Model 5**
+
+```{r}
+###Normality
+
+par(mfrow=c(1,2))
+hist(Model5$residuals)
+stem(Model5$residuals,scale=2)
+qqnorm(Model5$residuals, main = "Normal Q-Q Plot for Residuals")
+qqline(residuals(Model5))
+
+```
+
+**Model 6**
+
+```{r}
+###Normality
+
+par(mfrow=c(1,2))
+hist(Model6$residuals)
+stem(Model6$residuals,scale=2)
+qqnorm(Model6$residuals, main = "Normal Q-Q Plot for Residuals")
+qqline(residuals(Model6))
+
+```
+
+## Example 8.6.1
+
+Refer to Example 8.8 from the text book. Data set: FASTFOOD
+
+(a) Fit the model to the data and evaluate overall model adequacy.
+
+```{r}
+
+FASTFOOD = read.table("FASTFOOD.txt", header=TRUE)
+attach(FASTFOOD)
+head(FASTFOOD)
+table(CITY)
+
+x1=ifelse(FASTFOOD$CITY=="1", 1, 0)
+x2=ifelse(FASTFOOD$CITY=="2", 1, 0)
+x3=ifelse(FASTFOOD$CITY=="3", 1, 0)
+
+FASTDUMMY=data.frame(SALES=FASTFOOD$SALES,TRAFFIC=FASTFOOD$TRAFFIC,x1, x2,x3, CITY = FASTFOOD$CITY)
+detach(FASTFOOD)
+attach(FASTDUMMY)
+head(FASTDUMMY)
+
+```
+
+
+1- Create a scatterplot for the dataset.
+
+```{r}
+
+plot(x=TRAFFIC, y=SALES)
+```
+2- Fit a regression lines using TRAFIC only and TRAFIC and CITY.
+
+\begin{equation}
+  x_1 =
+  \begin{cases}
+      1 & \text{if city 1}\\
+      0 & \text{if not} 
+    \end{cases}
+  \end{equation}
+
+\begin{equation}
+  x_2 =
+  \begin{cases}
+      1 & \text{if city 2}\\
+      0 & \text{if not} 
+    \end{cases}
+  \end{equation} \begin{equation}
+  x_3 =
+  \begin{cases}
+      1 & \text{if city 3}\\
+      0 & \text{if not} 
+    \end{cases}
+  \end{equation}
+
+$x_4$ = Traffic flow (in thousands of cars)
+
+
+```{r}
+
+#Model with TRAFFIC only
+M1=lm(SALES~TRAFFIC)
+summary(M1)
+#Model with both Variables
+M2=lm(SALES~TRAFFIC+factor(CITY))
+summary(M2)
+
+#or
+
+M22=lm(SALES~TRAFFIC+x1 +x2+x3)
+
+summary(M22)
+
+```
+
+
+(b) Plot the residuals from the model to check for any outliers.
+
+```{r}
+
+##Residuals plot
+plot(y=rstandard(M22), x=TRAFFIC,
+     xlab = "Traffic flow (in thousands of cars)", ylab = "Standardized Residual", 
+     main = "Standardized Residuals vs. TRAFFIC",ylim=c(-4, 6), xlim=c(20, 100), pch=19, col="blue" )
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="red")
+
+#identify(y=rstandard(M22), x=TRAFFIC)
+FASTDUMMY[13,]
+
+```
+
+
+```{r}
+
+
+plot(y=rstandard(M22), x=CITY,
+     xlab = "CITY", ylab = "Standardized Residual", 
+     main = "Standardized Residuals vs. CITY",ylim=c(-4, 6), xlim=c(1,5), pch=19, col="blue" )
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="red")
+identify(y=rstandard(M22), x=CITY)
+
+#Plot without the 13 observation
+plot(TRAFFIC[-13], SALES[-13], ylim=c(-10,80))
+
+FASTDUMMY[13,]
+```
+
+**Question:** Is observation 13 an influential point? Run the influence diagnostics for this observation. 
+
+```{r}
+
+leverage <- round(hatvalues(M22),3)
+StanRes <- round(rstandard(M22),3)
+residual <- round(M22$residuals,3)
+cd <- round(cooks.distance(M22),3)
+Rstudent=round(rstudent(M22),3)
+A=cbind(SALES,TRAFFIC,leverage,residual,StanRes, cd,Rstudent )
+
+A
+B=data.frame(A)
+```
+
+```{r}
+#Cutoff for Detecting Influence with Leverage
+n=length(TRAFFIC)
+cutL=2*(4+1)/n
+which(B$leverage >cutL)
+
+#Cook’s Distance Cutoff
+
+cutCD=4/(n-4-1)
+
+which(B$cd >cutCD)
+
+subset(B,B$cd >cutCD&B$leverage >cutL)
+
+A[24,]
+A[13,]
+
+```
+# Cook’s Distance Graph
+
+```{r}
+plot(cd,main="Cook’s Distance", xlab="Observation", ylab="Cook’s Distance Cutoff
+")
+abline(h=cutCD, lty="dashed", col="red")
+```
+
+
+(c) Based on the results, part (b), make the necessary model modifications and reevaluate model fit. Compare the results with part b results.
+
+Correct the $y$ value for the observation 13.
+
+```{r}
+####correct y-value
+
+FASTDUMMY[13,1]=8.2
+FASTDUMMY[13,]
+View(FASTDUMMY)
+ModelFastC=lm(SALES~TRAFFIC+x1 +x2+x3, data=FASTDUMMY)
+summary(ModelFastC)
+```
+
+```{r}
+
+##Residuals plot
+
+plot(y=rstandard(ModelFastC), x=TRAFFIC,
+     xlab = "Traffic flow (in thousands of cars)", ylab = "Standardized Residual", 
+     main = "Standardized Residuals vs. TRAFFIC",ylim=c(-4, 4), xlim=c(20, 100), pch=19, col="blue" )
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="red")
+```
+
+d) Create a scatterplot for the dataset and fit the regression lines for the models M1,M22, M3 (without observation 13), and ModelFastC.
+
+```{r}
+
+M3=lm(SALES[-13]~TRAFFIC[-13]+factor(CITY)[-13])
+summary(M3)
+
+plot(x=TRAFFIC, y=SALES,ylim=c(-10,90))
+plot(x=TRAFFIC, y=SALES,
+     xlab = "TRAFFIC", ylab = "SALES", 
+     main = "SALES vs. TRAFFIC",ylim=c(-10, 85), xlim=c(15,100), pch=19, col="blue" )
+abline(M22,col="red")
+abline(M3,col="green")
+abline(ModelFastC,col="blue")
+
+abline(M1,col="yellow")
+
+legend("topleft", legend = c("With observation 13","Without observation 13", "Corrected observation", "Only TRAFFIC"), 
+       col = c("red", "green","blue","yellow"), lty=1:1, cex = 0.8)
+
+```
+
+
+
+
+
+

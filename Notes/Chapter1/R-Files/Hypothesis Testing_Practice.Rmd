@@ -1,0 +1,87 @@
+---
+title: "Hypothesis Testing"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-05-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Testing a Hypothesis About a Population Mean
+
+Example 1.8.1 Refer to Example 1.14 from the textbook. (Data set: BONES)
+
+(t)- Statistic
+
+```{r}
+BONES <-read.csv("BONES.csv", header=TRUE)
+attach( BONES)
+View(BONES)
+head( BONES)
+summary(BONES)
+t.test(LWRATIO,mu=8.5)
+
+
+#Normal (z) Statistic
+
+#With Data
+library(BSDA)
+z.test()
+#Summarized Data
+#mean.x=a single number representing the sample mean of x
+#sigma.x =a single number representing the population standard deviation for x
+
+ztest=zsum.test()
+ztest
+
+```
+
+Create a graph and identify the rejection region.
+
+```{r}
+library(mosaic)
+
+mosaic::xcnorm(.95)
+
+#Critical Values
+
+print(qnorm(c(0.025,0.975)))
+
+
+detach(BONES)
+```
+
+Example 1.8.2 Refer to Example 1.15 from the textbook. (Data set: BENZENE)
+(t)- Statistic
+
+```{r}
+BENZENE <-read.csv("BENZENE.csv", header=TRUE)
+attach( BENZENE)
+View(BENZENE)
+head( BENZENE)
+summary(BENZENE)
+test=t.test()
+test
+
+
+
+```
+
+Create a graph and identify the rejection region.
+
+```{r}
+library(mosaic)
+
+mosaic::xqt(0.95,19)
+
+#Critical Value
+
+print(qt(0.95,19))
+#install.packages("gginference")
+library(gginference)
+ggttest(test)
+detach(BENZENE)
+```

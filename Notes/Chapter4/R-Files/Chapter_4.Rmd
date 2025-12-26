@@ -1,0 +1,486 @@
+---
+title: "Chapter 4"
+output:
+  pdf_document: default
+  html_document: default
+date: "2024-06-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Example 4.4.1
+Refer to Exercise 1.62, Cooling method for gas turbines.
+
+a) Use scatter-plot-matrix to plot the sample data. Interpret the plots.
+
+```{r}
+GASTURBINE <-read.table("GASTURBINE.txt", header=TRUE)
+View(GASTURBINE)
+attach(GASTURBINE)
+head(GASTURBINE)
+pairs(~HEATRATE+RPM+CPRATIO+INLET.TEMP+EXH.TEMP+AIRFLOW,data = GASTURBINE, 
+      main="Scatterplot Matrix of Gas Turbines")
+```
+
+
+```{r}
+library(PerformanceAnalytics)
+
+chart.Correlation(GASTURBINE[,c(3,4,5,6,7,9)] ,histogram=FALSE,pch=19)
+```
+
+
+b) Write a first-order model for heat rate ($y$) as a function of speed, inlet temperature, exhaust temperature, cycle pressure ratio, and air flow rate.
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x_2+...+\beta_ 5 x_5$
+
+c) Fit the model to the data using the method of least squares.
+```{r}
+model413=lm(HEATRATE~RPM+CPRATIO+INLET.TEMP+EXH.TEMP+AIRFLOW,data = GASTURBINE)
+summary(model413)
+
+```
+
+$\hat{y} = 13610 +0.08879x_1+0.3519x_2-9.201x_3+14.39x_4- 0.848x_5$
+
+##Example 4.5.1 
+
+Refer to Example 4.4.1, find the model standard deviation, $s$, and interpret its value.
+
+```{r}
+s=summary(model413)$s
+s
+```
+Thus, we expect the model to provide predictions of heat rates to within about $\pm2s= \pm2(458.8) = \pm 917.6$ kilojoules per kilowatt per hour. Or, about 95\% of sample heat rates fall within 917.6 kilojoules per kilowatt per hour of their predicted values using the model.
+
+## ANOVA Table for Example 4.4.1
+
+```{r}
+anova(model413)
+```
+##Example 4.9.1
+
+Refer to Example 4.4.1, use the RStudio output below and interpret the 95\% confidence interval for $E(y)$ and 95\% prediction interval for $y$ in the words of the problem when:
+
+RPM= 7500, INLET-TEMP= 1000, EXH-TEMP= 525, CPRATIO= 13.5, AIRFLOW= 10
+
+```{r}
+#Prediction
+New=data.frame(RPM=c(7500), CPRATIO=(13.5), INLET.TEMP=(1000), EXH.TEMP=c(525),AIRFLOW=c(10))
+predict(model413,New)
+
+##95% CI and PI
+predict(model413,New, interval="confidence",level=0.95)
+
+predict(model413,New, interval="prediction",level=0.95)
+```
+##Example 4.10.1
+Refer to Example 4.4.1:
+
+b) Use statistical software to fit the interaction model, part a, to the data in the GASTURBINE file. Give the least squares prediction equation.
+
+```{r}
+model=lm(HEATRATE~INLET.TEMP+EXH.TEMP + AIRFLOW+
+            INLET.TEMP*AIRFLOW+ 
+            EXH.TEMP*AIRFLOW,
+         data = GASTURBINE)
+summary(model)
+
+
+```
+##Example 4.13.1 
+
+Refer to Cooling method for gas turbines example. Consider a model for heat rate (kilojoules per kilowatt per hour) of a gas turbine as a function of cycle speed (revolutions per minute) and cycle pressure ratio. The data are saved in the GASTURBINE file.
+
+a) Write a complete second-order model for heat rate ($y$).
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x_2+\beta_3x_1x_2+\beta_4x^2_1+\beta_ 5x^2_2$
+
+b) Give the null and alternative hypotheses for determining whether the curvature terms in the complete second-order model are statistically useful for predicting heat rate ($y$).
+
+Test for Quadratic terms
+
+$H_0:\beta_4 =\beta_5 =0$
+
+$H_a$ At least one of the parameters, $\beta_4$ or$\beta_5$ differs from 0.
+
+c) For the test in part b, identify the “complete” and “reduced” model.
+
+**Reduced Model:**$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x_2+\beta_3x_1x_2$
+
+**Curvilinear Model (complete (or full) model):**
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x_2+\beta_3x_1x_2+\beta_4x^2_1+\beta_ 5x^2_2$
+
+```{r}
+
+modelFull=lm(HEATRATE~RPM + CPRATIO + RPM*CPRATIO + I(RPM^2) + I(CPRATIO^2),data = GASTURBINE)
+summary(modelFull)
+modelReduced=lm(HEATRATE~RPM + CPRATIO+ RPM*CPRATIO  ,data = GASTURBINE)
+summary(modelReduced)
+anova(modelReduced, modelFull)
+
+```
+
+f) Find the rejection region for the test of part (b) using $\alpha = .10$.
+
+```{r}
+qt(0.9,2,61)
+library(mosaic)
+xqf(.9,2,61)
+
+detach(GASTURBINE)
+```
+g) State the conclusion of the test in the words of the problem.
+
+**Decision:** Since the test statistic, $F = 9.353408$ falls in rejection region, we reject $H_0$.
+
+**Conclusion:** At 10\% level of significance, we have sufficient evidence that the quadratic terms contribute to the prediction of HEATRate.
+
+
+##Assessing the models
+```{r}
+GAS=read.table("GAS.txt",header = TRUE)
+attach(GAS)
+View(GAS)
+head(GAS)
+
+#Train and Test Data for MAPE
+sample <- sample.int(n = nrow(GAS), size = floor(.75*nrow(GAS)), replace = F) #75% of dataset 
+train <- GAS[sample, ]
+test <- GAS[-sample, ]
+
+nrow(test)
+nrow(train)
+
+modelTraningFull=lm(HEATRATE~RPM+CPRATIO+INLET.TEMP+EXH.TEMP+AIRFLOW,data = train)
+summary(modelTraningFull)
+
+modelIntrac=lm(HEATRATE~INLET.TEMP+EXH.TEMP+INLET.TEMP*AIRFLOW + EXH.TEMP*AIRFLOW,data = train)
+summary(modelIntrac)
+
+# Predictions
+yhat1=predict(modelTraningFull, test)
+yhat2=predict(modelIntrac,test)
+#yhat3=predict()
+#yhat4=predict()
+###3/ Calculate MAPE_FULL
+mean((abs(test$HEATRATE-yhat1))/test$HEATRATE)*100
+#INTRACTION
+mean((abs(test$HEATRATE-yhat2))/test$HEATRATE)*100
+```
+
+##Example 4.11.1 
+
+Refer to Example 4.37 from the textbook. A study of the variables that affect endogenous nitrogen excretion (ENE) in carp raised in Japan. Carps were divided into groups according to body weight and each group of 2-15 fish placed in a separate tank. The data set CARP shows the amount of ENE (in milligrams per 100 grams of body weight per day) measured in each tank after 20 days of feeding them a protein- free diet three times daily and the mean body weight (in grams) for each carp group.
+
+```{r}
+CARP=read.table("CARP.txt",header = TRUE)
+attach(CARP)
+View(CARP)
+head(CARP)
+```
+
+
+a) Graph the data in ascatter plot. Do you detect a pattern?
+
+```{r}
+plot(x=WEIGHT, y=ENE, ylab = "ENE (in milligrams per 100 grams of body weight per day)",
+     xlab = "Body Weight (in in grams)", 
+     main = "Scatterplot of ENE vs. Body Weight",
+     col="blue", ylim = c(0,20), xlim = c(10,400), pch=19)
+abline(lm(ENE~WEIGHT), col="Red", lty=1, lwd=2)
+
+
+modellinear=lm(ENE~WEIGHT)
+summary(modellinear)
+```
+
+b) The quadratic model $E(y)=\beta_0+\beta_1x_1+ \beta_2x_2$ was fit to the data using RStudio.
+
+Test for Quadratic term
+
+$H_0:\beta_2 = 0$
+
+$H_a:\beta_2  \neq 0$
+
+```{r}
+#QuadraticTerm
+modelQuad <- lm(ENE~WEIGHT+ I(WEIGHT^2))
+summary(modelQuad)
+
+c(summary(modelQuad)$adj.r.squared,summary(modellinear)$r.squared)
+
+```
+
+
+**Decision:** Since $p-$value = $0.03101 <\alpha = .10$, we reject $H_0$.
+
+**Conclusion:** At 10\% level of significance, there is sufficient evidence to conclude that the body weight and ENT are quadraticalLy related.
+
+
+
+```{r}
+plot(x=WEIGHT, y=ENE, ylab = "ENE (in mg/100 g of body weight per day)",
+     xlab = "Body Weight (in in grams)", 
+     main = "Scatterplot of ENE vs. Body Weight",
+     col="blue", ylim = c(0,20), xlim = c(10,400), pch=19)
+
+QUAD<- seq(0,285.7,0.1)
+lines(QUAD,predict(modelQuad,newdata=data.frame(WEIGHT=QUAD)),col="red" )
+abline(lm(ENE~WEIGHT), col="green", lty=1, lwd=2)
+
+legend("topleft",
+       legend = c("Linear fit", "Quadratic fit"),
+       col=c("green", "red"), , lty=1:1, cex = 0.8)
+
+detach(CARP)
+```
+
+##Example 4.12.1 
+
+Consider Example 4.8 from the textbook. Data set: EXPRESS
+
+```{r}
+EXPRESS=read.table("EXPRESS.txt", header = TRUE)
+attach(EXPRESS)
+head(EXPRESS)
+```
+
+
+a) Use scatter-plot-matrix to plot the sample data. Interpret the plots.
+
+```{r}
+pairs(~Cost+Weight+Distance,data = EXPRESS, 
+      main=" Matrix Scatterplot")
+
+
+```
+b) Give an appropriate linear model for the data.
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x_2+\beta_3x_1x_2+\beta_4x^2_1+\beta_ 5x^2_2$
+
+c) Fit the model to the data and give the prediction equation.
+
+```{r}
+model=lm(Cost~Weight+Distance+ I(Weight^2)+I(Distance^2)+Distance*Weight, data = EXPRESS)
+summary(model)
+```
+Note: Improve the model.
+
+
+```{r}
+model1=lm(Cost~Weight+Distance+ I(Weight^2)+Distance*Weight, data = EXPRESS)
+summary(model1)
+```
+
+
+g) Find a 95\% prediction interval for the cost of shipping a 5-pound package a distance of 100 miles.
+
+```{r}
+#Prediction
+New=data.frame(Weight=c(5), Distance=(100))
+predict(model,New)
+
+##95% CI and PI
+predict(model,New, interval="confidence",level=0.95)
+
+predict(model,New, interval="prediction",level=0.95)
+
+detach(EXPRESS)
+```
+# Example 4.12.2
+
+Refer to Exercise 4.53 from the textbook, “Homework assistance for accounting students.” Data set: ACCHW
+
+```{r}
+ACCHW=read.delim("ACCHW.txt", header = TRUE)
+attach(ACCHW)
+View(ACCHW)
+head(ACCHW)
+
+```
+
+(a) Propose a model for the knowledge gain ($y$) as a function of the qualitative variable, homework assistance group.
+
+**Dummy Variable**
+
+  \begin{equation}
+  x_1 =
+  \begin{cases}
+      1 & FULL\\
+      0 & if not
+    \end{cases} 
+    x_2 =
+  \begin{cases}
+      1 & CHECK\\
+      0 & if not
+    \end{cases} 
+    Base \quad Level=NO
+  \end{equation}
+  
+(a) Propose a model for the knowledge gain ($y$) as a function of the qualitative variable, homework assistance group. 
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x_2$
+
+```{r}
+table(ASSIST)
+x1=ifelse(ASSIST=="FULL", 1, 0)
+x2=ifelse(ASSIST=="CHECK", 1, 0)
+ACCHW1=data.frame(cbind(ACCHW,x1,x2))
+head(ACCHW1)
+View(ACCHW1)
+detach(ACCHW)
+attach(ACCHW1)
+modelDUMMY=lm(IMPROVE~x1+x2)
+summary(modelDUMMY)
+detach(ACCHW1)
+```
+## Complete Example
+
+In US, commercial contractors bid for the right to construct state highways and roads. A state government agency, usually the Department of Trans- portation (DOT), notifies various contractors of the state’s intent to build a highway. Contractor with the lowest bid (building cost) is awarded the road construction contract. Our objective is to build and test the adequacy of a model designed to predict the cost y of a road construction contract awarded using the sealed-bid system in Florida. Data set: FLAG, $n = 235$
+
+**Dummy Variable**
+
+  \begin{equation}
+  x_2 =
+  \begin{cases}
+      1 & Fixed\\
+      0 & if not
+    \end{cases}
+Base\quad Level = Competitive
+  \end{equation}
+
+```{r}
+FLAG = read.delim("FLAG.txt", header=TRUE)
+attach(FLAG)
+head(FLAG)
+
+
+```
+
+A complete second- order model with one two levels categorical and one numerical variable:
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x^2_1+\beta_3x_2+\beta_4x_1x_2+\beta_ 5x^2_1x_2$
+
+```{r}
+model=lm(COST~DOTEST+I(DOTEST^2)+STATUS+STATUS*DOTEST+STATUS*I(DOTEST^2))
+summary(model)
+```
+To determine whether this is a reasonable potential error of prediction, we calculate $CV$ of which a value of 10\% or smaller usually leads to more precise predictions.
+
+```{r}
+#CV
+s=sqrt(sum(model$residuals^2)/((length(COST) - (dim(model.matrix(model))[2]))))
+s
+cv=(s/mean(COST))*100
+cv
+```
+
+To determine whether the curvilinear terms should be included in the model or not, we test:
+
+$H_0:\beta_2 =\beta_5 =0$
+
+$H_a:$ At least one of the parameters, $\beta_2$ or$\beta_5$ differs from 0.
+
+**Reduced Model:**$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_3x_2+\beta_4x_1x_2$
+
+**Full Model:**
+
+$E ( y ) = \beta_ 0 + \beta_ 1 x_1 +\beta_ 2 x^2_1+\beta_3x_2+\beta_4x_1x_2+\beta_ 5x^2_1x_2$
+
+```{r}
+
+#Reduced Model
+modelReduced=lm(COST~DOTEST+STATUS+STATUS*DOTEST)
+summary(modelReduced)
+anova(modelReduced, model)
+
+```
+
+**Decision:**Since the $p$-value $= 0.3547 > 0.01$, we fail to reject $H_0$.
+
+**Conclusion:**At 1\% level of significance, there is insufficient evidence to indicate that the curvature terms are useful predictors of construction cost, $y$.
+
+The following scatterplot depicts the relationship between cost and DOT estimate by taking into account the status of the bid contract, fixed or competitive.
+
+```{r}
+plot(x=DOTEST, y=COST, ylab = "Contract Cost ($1000s)",
+     xlab = "Estimate of the cost of DOT ($1000s)",
+     main = "Contract Cost vs. DOT engineer’s estimate",
+     pch=19, 
+  col=factor(STATUS),ylim = c(0,15000), xlim = c(0,12000))
+##Rename Legend
+S=factor(STATUS)
+levels(S)
+levels(S)=c("Competitive","Fixed")
+
+legend("topright", legend = levels(S), pch=c(19,19)
+       ,col = factor(levels(factor(STATUS))))
+
+```
+
+
+Now, let’s fit the least squares lines for both fixed and competitive contracts:
+
+Option 1:
+
+```{r}
+plot(x=DOTEST, y=COST, ylab = "Contract Cost ($1000s)",
+     xlab = "Estimate of the cost of DOT ($1000s)",
+     main = "Contract Cost vs. DOT engineer’s estimate",
+     pch=19, 
+  col=factor(STATUS),ylim = c(0,15000), xlim = c(0,12000))
+abline(lm(COST[STATUS=='0']~DOTEST[STATUS=='0']), col="green")
+abline(lm(COST[STATUS=='1']~DOTEST[STATUS=='1']),col="red")
+legend("topleft", legend = c(levels(S),"Regression Line: Fixed","Regression Line:Competitive"),
+       pch=c(19,19,NA,NA),lty=c(NA,NA,1,1) 
+       ,col = c(factor(levels(factor(STATUS))),"red","green"))
+```
+
+
+Option 2:
+
+```{r}
+plot(x=DOTEST, y=COST, ylab = "Contract Cost ($1000s)",
+     xlab = "Estimate of the cost of DOT ($1000s)",
+     main = "Contract Cost vs. DOT engineer’s estimate",
+     pch=19, 
+  col=factor(STATUS),ylim = c(0,15000), xlim = c(0,12000))
+modelR=lm(COST~DOTEST+STATUS+STATUS*DOTEST)
+range(DOTEST)
+Q<- seq(28.3,10743.6,0.1)
+lines(Q,predict(modelR,newdata=data.frame(DOTEST=Q,STATUS=1)),
+      col="red" )
+lines(Q,predict(modelR,newdata=data.frame(DOTEST=Q,STATUS=0)),
+      col="green" )
+
+legend("topleft", legend = c(levels(S),"Regression Line: Fixed","Regression Line:Competitive"),
+       pch=c(19,19,NA,NA),lty=c(NA,NA,1,1) 
+       ,col = c(factor(levels(factor(STATUS))),"red","green"))
+       
+```
+
+Question: which option is better?
+
+
+The following output shows the 95\% prediction interval for contract cost when the DOT estimateis \$$1,386,290$ $(x_1 = 1, 386.29)$ and the contract is fixed ($x_2 = 1$).
+
+```{r}
+##95% PI
+New=data.frame(DOTEST=c(1386.29), STATUS=c(1))
+predict(modelReduced, newdata=New, interval="prediction", level=0.95)
+```
+## $s$ For Reduced model
+```{r}
+
+s1=sqrt(sum(modelReduced$residuals^2)/((length(COST) - (dim(model.matrix(modelReduced))[2]))))
+s1
+#or
+s2 =summary(modelReduced)$s
+s2
+cv1=(s1/mean(COST))*100
+cv1
+```

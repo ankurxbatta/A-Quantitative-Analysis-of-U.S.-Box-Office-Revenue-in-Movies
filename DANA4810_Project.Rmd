@@ -1,0 +1,1197 @@
+---
+title: "DANA4810-Project"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+# Load the dataset
+movies <- read.csv('Movie.csv')
+movies <- head(movies, -1)
+options(scipen = 999)
+# Display first few rows
+head(movies)
+```
+
+
+```{r}
+# Display summary statistics
+summary(movies)
+```
+
+```{r}
+pairs(~USRevenue+Budget+Opening+Theaters,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+#pairs(~USRevenue+Budget+Opening+Theaters+Ratings+Review+Minutes,data = movies, 
+     # main="Scatterplot Matrix of Movies Complete") #to see multicollinearity 
+library(PerformanceAnalytics)
+
+chart.Correlation(movies[,c("USRevenue","Budget","Opening","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+```
+#Checking for trends of categorical variables vs USRevenue
+```{r}
+aggregate(USRevenue ~ Sequel, data = movies, mean)
+aggregate(USRevenue ~ Genre, data = movies, mean)
+aggregate(USRevenue ~ Rating, data = movies, mean)
+```
+
+#Side by side box plot
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+cat_vars <- c("Sequel","Genre","Rating","USReleaseMonth")
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+
+# For each variable: compute mean USRevenue for each category, then combine
+mean_by_cat <- bind_rows(
+  lapply(cat_vars, function(var) {
+    movies %>%
+      filter(!is.na(.data[[var]])) %>%
+      group_by(Category = .data[[var]]) %>%
+      summarise(
+        mean_USRevenue = mean(USRevenue, na.rm = TRUE),
+        n = n(),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        Variable = var,
+        Category = as.character(Category)   # Convert to character
+      )
+  })
+)
+
+# Now plot boxplot of the distribution of category means for each Variable
+ggplot(mean_by_cat, aes(x = Variable, y = mean_USRevenue, fill = Variable)) +
+  geom_boxplot(width = 0.6, outlier.size = 1) +
+  labs(title = "Distribution of category means (USRevenue) by Variable",
+       x = "Categorical Variable", y = "Mean USRevenue (per category)") +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none") +
+  scale_fill_manual(values = c("Sequel"="#66C2A5","Genre"="#FC8D62","Rating"="#8DA0CB","USReleaseMonth"="#E78AC3"))
+
+
+```
+
+
+
+**Interpretation:** We can see there is a significant difference for rated PG-13 and R in regards to USRevenue, where those categories are associated with lower USRevenue. We can consider a dummy variable that accounts for this. Same with a movie being a Sequel (=1), which is associated with higher USRevenue. 
+
+```{r}
+names(movies)
+
+Genre   <- factor(movies$Genre)
+Rating <- factor(movies$Rating)
+s <- ifelse(movies$Sequel == 1, 1, 0)
+
+model55 = lm(USRevenue~Budget+Opening+Theaters+Ratings+Minutes+s+factor(Genre)+factor(Rating), data=movies)
+summary(model55)
+```
+**Interpretation:** This is a full model. Opening, Ratings (numerical, not pg/r ect), and Comedy are significant. 
+#Stepwise Regression
+```{r}
+step(lm(USRevenue ~ Genre + Rating + Sequel + Budget + Opening + Theaters + Ratings + Review + Minutes, data = movies), direction = "both")
+```
+**After did stepwise regression, we get the model with Genre, Opening, Theaters and Ratings as predictors.**
+
+
+##We will start doing models with subsets of the variables to see which ones remain significant, to eventually close in on a final model. 
+```{r}
+model54 = lm(USRevenue~s+factor(Genre)+factor(Rating), data=movies)
+summary(model54)
+
+model53 = lm(USRevenue~factor(Rating), data=movies)
+summary(model53)
+
+model52 = lm(USRevenue~s, data=movies)
+summary(model52)
+
+model51 = lm(USRevenue~factor(Genre), data=movies)
+summary(model51)
+```
+
+
+```{r}
+model50 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating), data=movies)
+summary(model50)
+
+model49 = lm(USRevenue~Opening+Ratings+factor(Rating), data=movies)
+summary(model49)
+
+#model50 better with Ratings^2
+```
+#Now add some variables back in: We will add comedy because in the original model55 with most of the variables, the factor(Genre)Comedy was the only significant one 
+```{r}
+c <- ifelse(movies$Genre == "Comedy", 1, 0)
+model48 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model48)
+```
+
+#What if we change the Genre categories to be just Animation or Other, since Animation is associated with highest USRevenue of all genres. 
+```{r}
+movies$a <- ifelse(movies$Genre == "Animation", 1, 0)
+model47 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating)+a, data=movies)
+summary(model47)
+```
+
+#Animation not significant, so go back to comedy and add other variables 
+```{r}
+model46 = lm(USRevenue~Budget+Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model46)
+
+model45 = lm(USRevenue~Theaters+Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model45)
+```
+
+#Dummy variable for high rating, which is PG-13 or R, since those two are assoicated with lower USRevenue.
+```{r}
+movies$highrate <- ifelse(movies$Rating %in% c("PG-13", "R"),1, 0)
+model44 = lm(USRevenue~Budget+Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model44)
+```
+
+#Start trying models with interaction
+```{r}
+model43= lm(USRevenue~Budget+Theaters+Opening+I(Ratings^2)+highrate+c+Theaters*Budget, data=movies)
+summary(model43)
+```
+#Try Quadratic and interaction of Theaters.
+```{r}
+model42= lm(USRevenue~I(Theaters^2)+Opening+I(Ratings^2)+highrate+c+I(Theaters^2)*Opening, data=movies)
+summary(model42)
+```
+**Interpretation of model42:** This is the highest Adjusted R-squared yet at .9624, which is about .0034 higher than the model below. Should we go for simplicity or slightly higher adjusted R-squared?
+
+
+#We found that Theaters is not significant
+
+
+```{r}
+model41 = lm(USRevenue~Opening+Ratings+highrate+c, data=movies)
+summary(model41)
+```
+#We curious that USRelease might affect to predict USRevenue, so we add USRelease variable to the model(only month not include date.
+```{r}
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+model40 = lm(USRevenue~Opening+Ratings+highrate+c+USReleaseMonth, data=movies)
+summary(model40)
+```
+$H_0:\beta_5 = \beta_6 = \beta_7 = \beta_8 = \beta_9 = \beta_10$ 
+$H_a:$ At least one of $\beta_5$ to $\beta_10$ differ from 0
+
+```{r}
+anova(model41, model40)
+```
+**Test Statistic: 0.9822 **
+**p-value: 0.4529**
+**Decision: Since p-value is large (0.4529), we fail to reject $H_0$.**
+**Conclusion: At 5% level of significance, we do Not have sufficient to conclude that USRelease are significance and affect to use as a predictor.**
+
+```{r}
+# Bin Opening weekend revenue so interaction.plot has a categorical x-axis without mutating movies
+opening_bins <- cut(
+      movies$Opening,
+      breaks = quantile(movies$Opening, probs = seq(0, 1, 0.25), na.rm = TRUE),
+      include.lowest = TRUE
+)
+```
+
+##Model 41 is better NEED P-VALUE, CONCLUSION, INTERPRETATION, HO, HA 
+
+
+#Since the simpler model, model41, is better, we go back to this and start looking for multicollinearity 
+```{r}
+library(car)
+vif(model41)
+summary(model41)
+```
+**Interpretation:** All VIF values were quite low, and less than 10, which is not a flag of multi-collinearity. Additionally, model41 passes the global F-test, with a p-value of 0.00000000000000022, AND all terms are significant. Looking at the coefficients for each variable, their signs all follow the trend that their variable graphs/summaries show.
+  -highrate, which has coefficient of -33.6526, represents when a movie is rated PG-13   or R. In previous graphs, movies of those ratings have been associated with a decrease   in USRevenue, which matches the sign of the coefficient in this model. 
+  -Ratings and Opening both are positive, which is represented in the original scatterplot, where Ratings and Opening have a positive relationship with USRevenue. 
+  -Comedy is a bit ambiguous and might mean this model needs further testing
+ 
+
+```{r}
+# Residuals vs Fitted Values
+range(fitted(model41))
+range(residuals(model41))
+plot(x=fitted(model41), y=residuals(model41), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model41)", xlim=c(0, 350), ylim=c(-35, 35),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sig <- summary(model41)$sigma
+abline(h=2*sig, lty="dashed", col="green")
+abline(h=-2*sig, lty="dashed", col="green")
+abline(h=3*sig, lty="dashed", col="black")
+abline(h=-3*sig, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*sig, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*sig, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*sig, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*sig, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+```
+**Interpretation:** There is heteroscedasticity here and the model will need some transformations.  
+
+##Applying ln to USRevenue (y-variable) may fix this
+```{r}
+USRevenueln=log(movies$USRevenue)
+model39 = lm(USRevenueln~Opening+Ratings+highrate+c, data=movies)
+summary(model39)
+vif(model39)
+```
+**Interpretation:** Now, highrate and c are not significant.
+
+
+
+##Try another model, without insignificant variables
+
+$H_0: \beta_3 = \beta_4 = 0$
+$H_a:$ At least one  of $\beta_3$ and $\beta_4$ differs from 0
+```{r}
+model38 = lm(USRevenueln~Opening+Ratings, data=movies)
+summary(model38)
+vif(model38)
+anova(model38, model39)
+```
+**The test statistic, F = 0.9532 and p-value = 0.3943**
+**Decision: Since p-value is large > 0.05, we fail to reject $H_0$
+**Interpretation:** Model 38 is better. NEED HO HA, P-VALUE, DECISION, ECT FOR THIS ANOVA TEST
+
+##We need to test the residuals for model 38
+```{r}
+# Residuals vs Fitted Values
+range(fitted(model38))
+range(residuals(model38))
+plot(x=fitted(model38), y=residuals(model38), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model38)", xlim=c(0, 7), ylim=c(-1, 1),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sig1 <- summary(model38)$sigma
+abline(h=2*sig1, lty="dashed", col="green")
+abline(h=-2*sig1, lty="dashed", col="green")
+abline(h=3*sig1, lty="dashed", col="black")
+abline(h=-3*sig1, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*sig1, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*sig1, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*sig1, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*sig1, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+
+```
+#there is a curve there- maybe we need to do transformation(get rid of ln of USRevenue)
+
+```{r}
+model37 = lm(USRevenue~Opening+Ratings+highrate, data=movies)
+summary(model37)
+vif(model37)
+```
+**Interpretation:** This model looks better, has significant values, and VIF is low. 
+
+##Lets visualize model37 residuals
+```{r}
+# Residuals vs Fitted Values
+range(fitted(model37))
+range(residuals(model37))
+plot(x=fitted(model37), y=residuals(model37), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model37)", xlim=c(0, 350), ylim=c(-30, 55),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sig2 <- summary(model37)$sigma
+abline(h=2*sig2, lty="dashed", col="green")
+abline(h=-2*sig2, lty="dashed", col="green")
+abline(h=3*sig2, lty="dashed", col="black")
+abline(h=-3*sig2, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*sig2, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*sig2, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*sig2, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*sig2, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+
+```
+**Interpretation:** Still slightly heteroscedastic.
+
+```{r}
+anova(model37)
+```
+
+#Lets try a new model. Interaction has worked in the past with Opening and Theaters, maybe this will help
+```{r}
+model36 = lm(USRevenueln~Opening+Ratings+Opening*Theaters, data=movies)
+summary(model36)
+vif(model36, type="predictor")
+```
+**Interpretation:** model36 has significant terms and low VIF scores
+
+
+```{r}
+# Residuals vs Fitted Values
+range(fitted(model36))
+range(residuals(model36))
+plot(x=fitted(model36), y=residuals(model36), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model36)", xlim=c(2, 7), ylim=c(-.75, .75),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sig3 <- summary(model36)$sigma
+abline(h=2*sig3, lty="dashed", col="green")
+abline(h=-2*sig3, lty="dashed", col="green")
+abline(h=3*sig3, lty="dashed", col="black")
+abline(h=-3*sig3, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*sig3, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*sig3, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*sig3, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*sig3, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+
+```
+
+
+```{r}
+#install.packages("Hmisc")
+library(Hmisc)
+Z = cbind(
+  movies$Opening,
+  movies$Ratings,
+  movies$Theaters
+)
+rcorr(Z, type="pearson")
+```
+
+
+```{r}
+summary(residuals(model36))
+```
+
+
+```{r}
+# Residuals vs Opening
+range(movies$Opening)
+range(residuals(model36))
+plot(x=movies$Opening, y=residuals(model36), 
+     xlab = "Opening Weekend Revenue", ylab = "Residuals", 
+     main = "Residuals vs Opening (model36)", xlim = c(0, 120) , ylim = c(-.75,.75) ,
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+abline(h=2*sig3, lty="dashed", col="green")
+abline(h=-2*sig3, lty="dashed", col="green")
+```
+
+
+```{r}
+# Residuals vs Theaters
+range(movies$Theaters)
+range(residuals(model36))
+plot(x=movies$Theaters, y=residuals(model36), 
+     xlab = "Theaters", ylab = "Residuals", 
+     main = "Residuals vs Theaters (model36)", xlim = c(2000, 4300) , ylim = c(-.75,.75) ,
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+abline(h=2*sig3, lty="dashed", col="green")
+abline(h=-2*sig3, lty="dashed", col="green")
+```
+
+
+```{r}
+# Ratings vs Theaters
+range(movies$Ratings)
+range(residuals(model36))
+plot(x=movies$Ratings, y=residuals(model36), 
+     xlab = "Ratings", ylab = "Residuals", 
+     main = "Residuals vs Ratings (model36)", xlim = c(3, 8) , ylim = c(-.75,.75) ,
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+abline(h=2*sig3, lty="dashed", col="green")
+abline(h=-2*sig3, lty="dashed", col="green")
+```
+
+
+```{r}
+# Diagnostic plots (4-panel)
+par(mfrow=c(2,2))
+plot(model36)
+par(mfrow=c(1,1))
+```
+
+
+```{r}
+# Standardized residuals for model36
+plot(y=rstandard(model36), x=fitted(model36),
+     xlab = "Fitted Values", ylab = "Standardized Residuals", 
+     main = "Standardized Residuals vs Fitted Values (model36)",xlim = c(2,7) , ylim = c(-4,4) ,
+     pch=19, col="blue")
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="green")
+identify(y=rstandard(model36), x=fitted(model36))
+```
+
+
+```{r}
+hist(residuals(model36))
+# Histogram of residuals
+hist(residuals(model36), main="Histogram of Residuals (model36)", 
+     xlab="Residuals", col="lightblue", breaks=20)
+```
+
+```{r}
+# Calculate influence measures
+n <- nrow(movies)
+p <- length(coef(model36))
+leverage <- hatvalues(model36)
+StanRes <- rstandard(model36)
+cd <- cooks.distance(model36)
+Rstudent <- rstudent(model36)
+
+# Cutoffs
+#cutL <- 2*p/n  # Leverage cutoff
+#cutCD <- 4/(n-p-1)  # Cook's Distance cutoff
+
+# Create influence diagnostics table
+Influence_table <- data.frame(
+  Observation = 1:n,
+  USRevenue = movies$USRevenue,
+  Leverage = round(leverage, 3),
+  StanRes = round(StanRes, 3),
+  CooksD = round(cd, 3),
+  Rstudent = round(Rstudent, 3)
+)
+
+print(Influence_table)
+
+# Show influential observations
+#influential <- influence_table[leverage > cutL | cd > cutCD, ]
+#if(nrow(influential) > 0) {
+ # cat("\nInfluential Observations:\n")
+ # print(influential)
+#} else {
+ # cat("\nNo influential observations detected.\n")
+#}
+```
+##NEED CALCUATIONS OF LEVERAGE, COOKS, RSTUDENT CUTOFFS AND PARAGPHARH OF WHICH POINTS DONT MATCH ON DATA SET
+
+```{r}
+# Q-Q plot for model36
+qqnorm(residuals(model36), main = "Normal Q-Q Plot (model_simplified2)")
+qqline(residuals(model36), col="red")
+
+shapiro.test(residuals(model36))
+```
+
+
+```{r}
+##Partial Residual plots
+library(car)
+avPlots(model36)
+
+```
+
+## We also have model_complex, which is a more complicated model, but performs well. Lets test it, and compare it to model36.
+```{r}
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+movies$jun <- ifelse(movies$USReleaseMonth == "Jun", 1, 0)
+```
+
+```{r}
+model_complex = lm(USRevenue ~ Opening + Ratings + highrate + c + jun+ Opening*Theaters, data = movies)
+summary(model_complex)
+vif(model_complex, type="predictor") #takes into account interaction terms, so it doesn't raise VIF because of those interaction terms
+```
+
+
+```{r}
+# Standardized residuals for model_complex
+plot(y=rstandard(model_complex), x=fitted(model_complex),
+     xlab = "Fitted Values", ylab = "Standardized Residuals", 
+     main = "Standardized Residuals vs Fitted Values (model_complex)",xlim = c(0,325) , ylim = c(-4,4) ,
+     pch=19, col="blue")
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="green")
+identify(y=rstandard(model_complex), x=fitted(model_complex))
+
+```
+#slight heteroscacicity- let's do some transformations
+```{r}
+model_complexln = lm(USRevenueln ~ Opening + Ratings + highrate+c+ jun+ Opening*Theaters, data = movies)
+summary(model_complexln)
+vif(model_complexln, type="predictor")
+```
+
+##Get rid of highrate and c
+```{r}
+model_complexln1 = lm(USRevenueln ~ Opening + Ratings + jun+ Opening*Theaters, data = movies)
+summary(model_complexln1)
+vif(model_complexln1, type="predictor")
+```
+
+```{r}
+# Residuals vs Fitted Values
+range(fitted(model_complexln1))
+range(residuals(model_complexln1))
+plot(x=fitted(model_complexln1), y=residuals(model_complexln1), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (model_complexln1)", xlim=c(2, 7), ylim=c(-.75, .5),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sig5 <- summary(model_complexln1)$sigma
+abline(h=2*sig5, lty="dashed", col="green")
+abline(h=-2*sig5, lty="dashed", col="green")
+abline(h=3*sig5, lty="dashed", col="black")
+abline(h=-3*sig5, lty="dashed", col="black")
+
+text(x = 0, 
+       y = 2*sig5, 
+       "2*s", cex=1.3, col = "red", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -2*sig5, 
+     "-2*s", cex=1.3, col = "red", las = 1,
+     xpd = TRUE)
+text(x = 0, 
+       y = 3*sig5, 
+       "3*s", cex=1.3, col = "black", las = 1,
+       xpd = TRUE)
+text(x = 0, 
+     y = -3*sig5, 
+     "-3*s", cex=1.3, col = "black", las = 1,
+     xpd = TRUE)
+
+```
+
+```{r}
+# Standardized residuals for model_complexln1
+plot(y=rstandard(model_complexln1), x=fitted(model_complexln1),
+     xlab = "Fitted Values", ylab = "Standardized Residuals", 
+     main = "Standardized Residuals vs Fitted Values (model_complexln1)",xlim = c(2,7) , ylim = c(-4,4) ,
+     pch=19, col="blue")
+abline(h=-3, lty="dashed", col="red")
+abline(h=3, lty="dashed", col="red")
+abline(h=0, lty="dashed", col="green")
+identify(y=rstandard(model_complexln1), x=fitted(model_complexln1))
+```
+
+
+```{r}
+# Q-Q plot for model29
+qqnorm(residuals(model_complexln1), main = "Normal Q-Q Plot (model_complexln1)")
+qqline(residuals(model_complexln1), col="red")
+```
+```{r}
+# Diagnostic plots (4-panel)
+par(mfrow=c(2,2))
+plot(model_complexln1)
+par(mfrow=c(1,1))
+```
+
+
+```{r}
+# Calculate influence measures
+n <- nrow(movies)
+p <- length(coef(model_complexln1))
+leverage <- hatvalues(model_complexln1)
+StanRes <- rstandard(model_complexln1)
+cd <- cooks.distance(model_complexln1)
+Rstudent <- rstudent(model_complexln1)
+
+# Cutoffs
+#cutL <- 2*p/n  # Leverage cutoff
+#cutCD <- 4/(n-p-1)  # Cook's Distance cutoff
+
+# Create influence diagnostics table
+Influence_table1 <- data.frame(
+  Observation = 1:n,
+  USRevenue = movies$USRevenue,
+  Leverage = round(leverage, 3),
+  StanRes = round(StanRes, 3),
+  CooksD = round(cd, 3),
+  Rstudent = round(Rstudent, 3)
+)
+
+print(Influence_table1)
+
+# Show influential observations
+#influential <- influence_table[leverage > cutL | cd > cutCD, ]
+#if(nrow(influential) > 0) {
+ # cat("\nInfluential Observations:\n")
+ # print(influential)
+#} else {
+ # cat("\nNo influential observations detected.\n")
+#}
+```
+
+
+```{r}
+hist(residuals(model_complexln1))
+# Histogram of residuals
+hist(residuals(model_complexln1), main="Histogram of Residuals (model_complexln1)", 
+     xlab="Residuals", col="lightblue", breaks=20)
+```
+
+
+```{r}
+anova(model36,model_complexln1)
+summary(residuals(model36))
+summary(residuals(model_complexln1))
+```
+
+```{r}
+anova(model36)
+anova(model_complexln1)
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+```{r}
+beforeopening <- lm(USRevenue ~ Budget + Theaters + Ratings +c+ Budget*Theaters, data=movies)
+summary(beforeopening)
+vif(beforeopening, type="predictor")
+```
+
+```{r}
+# Residuals vs Fitted Values
+plot(x=fitted(beforeopening), y=residuals(beforeopening), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (beforeopening)", xlim=c(0, 400), ylim=c(-70, 70),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sigmal <- summary(beforeopening)$sigma
+abline(h=2*sigmal, lty="dashed", col="green")
+abline(h=-2*sigmal, lty="dashed", col="green")
+
+```
+#very strong heteroscacitity (multiplicative errors )
+
+```{r}
+beforeopeningln <- lm(USRevenueln ~  Theaters + Ratings +c, data=movies)
+summary(beforeopeningln)
+
+```
+
+
+```{r}
+# Residuals vs Fitted Values
+plot(x=fitted(beforeopeningln), y=residuals(beforeopeningln), 
+     xlab = "Fitted Values", ylab = "Residuals", 
+     main = "Residuals vs Fitted Values (beforeopeningln)", xlim=c(2, 7), ylim=c(-1, 1),
+     pch=19, col="blue")
+abline(h=0, lty="dashed", col="red")
+
+# Add +/- 2*sigma lines
+sigmaln <- summary(beforeopeningln)$sigma
+abline(h=2*sigmaln, lty="dashed", col="green")
+abline(h=-2*sigmaln, lty="dashed", col="green")
+```
+
+
+```{r}
+vif(beforeopeningln, type="predictor")
+```
+
+
+#AIC,BIC,R^2 for model36
+```{r}
+summary(model36)$r.squared
+summary(model36)$adj.r.squared
+sum(resid(model36)^2)      # RSS
+AIC(model36)
+BIC(model36)
+
+
+```
+
+#AIC,BIC,R^2 for model_complexln1
+```{r}
+summary(model_complexln1)$r.squared
+summary(model_complexln1)$adj.r.squared
+sum(resid(model_complexln1)^2)      # RSS
+AIC(model_complexln1)
+BIC(model_complexln1)
+```
+#Comparison table
+
+```{r}
+model_comparison <- data.frame(
+  Model = c("model36", "model_complexln1"),
+  R_squared = c(summary(model36)$r.squared,
+                summary(model_complexln1)$r.squared),
+  Adj_R_squared = c(summary(model36)$adj.r.squared,
+                    summary(model_complexln1)$adj.r.squared),
+  RSS = c(sum(resid(model36)^2),
+          sum(resid(model_complexln1)^2)),
+  AIC = c(AIC(model36), AIC(model_complexln1)),
+  BIC = c(BIC(model36), BIC(model_complexln1))
+)
+model_comparison
+```
+
+
+```{r}
+## Train/Test validation
+movies$USRevenueln <- log(movies$USRevenue)
+summary(movies[, c("USRevenueln", "Opening", "Ratings", "Theaters")])
+
+set.seed(4810)
+n_total <- nrow(movies)
+train_idx <- sample(seq_len(n_total), size = floor(0.7 * n_total))
+train_data <- movies[train_idx, ]
+test_data <- movies[-train_idx, ]
+
+model36_train <- lm(USRevenueln ~ Opening + Ratings + Opening * Theaters,
+										data = train_data)
+pred_test <- predict(model36_train, newdata = test_data)
+
+results_tt <- data.frame(
+	Actual = test_data$USRevenueln,
+	Predicted = pred_test
+)
+
+rmse_test <- sqrt(mean((results_tt$Actual - results_tt$Predicted)^2))
+rmse_test
+
+plot(results_tt$Actual, results_tt$Predicted,
+		 xlab = "Actual log(USRevenue)",
+		 ylab = "Predicted log(USRevenue)",
+		 main = "model36 Test Predictions",
+		 pch = 19, col = "steelblue")
+abline(0, 1, col = "firebrick", lwd = 2, lty = 2)
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+

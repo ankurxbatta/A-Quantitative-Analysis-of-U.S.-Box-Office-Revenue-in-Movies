@@ -1,0 +1,251 @@
+---
+title: "Movie Dataset Analysis Project"
+output:
+  pdf_document: default
+  html_document: default
+date: "2025-11-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction
+
+This project analyzes movie data to predict US Revenue based on various factors such as budget, opening weekend revenue, number of theaters, ratings, and more. The goal is to build a regression model that explains the variability in US Revenue. Below, we document the step-by-step process of model development, including exploratory data analysis, initial model building, variable selection, transformations, and interactions, leading to the final model.
+
+# Data Preparation
+
+```{r}
+# Load the dataset
+movies <- read.csv('Movie.csv')
+head(movies)
+summary(movies)
+# Avoid View() in knitted output to prevent DataTables re-init issues
+if (interactive()) View(movies)
+movies <- head(movies, -1)  # Remove the last row if it's invalid
+tail(movies)
+```
+
+
+# Exploratory Data Analysis
+
+We begin by visualizing the relationships between variables to understand potential correlations and multicollinearity.
+
+```{r}
+pairs(~USRevenue+Budget+Opening+Theaters,data = movies, 
+      main="Scatterplot Matrix of Key Numerical Variables")
+
+pairs(~USRevenue+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix Including Ratings and Review")
+
+pairs(~USRevenue+Budget+Opening+Theaters+Ratings+Review+Minutes,data = movies, 
+      main="Complete Scatterplot Matrix to Check Multicollinearity")
+
+library(PerformanceAnalytics)
+chart.Correlation(movies[,c("USRevenue","Budget","Opening","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+```
+# Initial Model Building
+
+We start with a full model including all potential predictors: numerical variables (Budget, Opening, Theaters, Ratings, Minutes), and categorical variables (Genre, Rating, Sequel).
+
+```{r}
+names(movies)
+
+Genre   <- factor(movies$Genre)
+Rating <- factor(movies$Rating)
+s <- ifelse(movies$Sequel == 1, 1, 0)  # Binary for Sequel
+
+model55 = lm(USRevenue~Budget+Opening+Theaters+Ratings+Minutes+s+factor(Genre)+factor(Rating), data=movies)
+summary(model55)
+```
+
+# Checking Categorical Variables
+
+To understand the impact of categorical variables, we examine their means.
+
+```{r}
+aggregate(USRevenue ~ Sequel, data = movies, mean)
+aggregate(USRevenue ~ Genre, data = movies, mean)
+```
+
+# Simplifying the Model: Focusing on Categorical Variables
+
+Given multicollinearity concerns, we first model only the categorical variables to see their individual effects.
+
+```{r}
+model54 = lm(USRevenue~s+factor(Genre)+factor(Rating), data=movies)
+summary(model54)
+
+model53 = lm(USRevenue~factor(Rating), data=movies)
+summary(model53)
+
+model52 = lm(USRevenue~s, data=movies)
+summary(model52)
+
+model51 = lm(USRevenue~factor(Genre), data=movies)
+summary(model51)
+```
+
+
+# Incorporating Numerical Variables with Transformations
+
+We add back numerical variables, starting with Opening and Ratings, and try a quadratic term for Ratings.
+
+```{r}
+model50 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating), data=movies)
+summary(model50)
+
+model49 = lm(USRevenue~Opening+Ratings+factor(Rating), data=movies)
+summary(model49)
+# Model50 with Ratings^2 performs better.
+```
+
+
+# Adding Significant Genre Indicator
+
+From the full model, Comedy was the only significant Genre. We add it back.
+
+```{r}
+movies$c <- ifelse(movies$Genre == "Comedy", 1, 0)
+model48 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model48)
+```
+
+Verification of Comedy's association:
+
+```{r}
+aggregate(USRevenue ~ Genre, data = movies, mean)
+```
+
+
+# Experimenting with Other Genres
+
+We try Animation instead of Comedy, but it wasn't significant, so we stick with Comedy.
+
+```{r}
+movies$a <- ifelse(movies$Genre == "Animation", 1, 0)
+model47 = lm(USRevenue~Opening+I(Ratings^2)+factor(Rating)+a, data=movies)
+summary(model47)
+```
+
+
+# Adding More Variables Back
+
+We add Budget and Theaters back to see if they improve the model.
+
+```{r}
+model46 = lm(USRevenue~Budget+Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model46)
+
+model45 = lm(USRevenue~Theaters+Opening+I(Ratings^2)+factor(Rating)+c, data=movies)
+summary(model45)
+```
+
+
+
+# Simplifying Rating Categories
+
+We create a binary for high-rated movies (PG-13, R).
+
+```{r}
+movies$highrate <- ifelse(movies$Rating %in% c("PG-13", "R"),1, 0)
+model44 = lm(USRevenue~Budget+Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model44)
+```
+# Trying Interactions
+
+We experiment with interactions, like Theaters*Budget.
+
+```{r}
+model43= lm(USRevenue~Budget+Theaters+Opening+I(Ratings^2)+highrate+c+Theaters*Budget, data=movies)
+summary(model43)
+```
+
+
+# Quadratic for Theaters and Interaction
+
+Based on pairplots showing quadratic relationship with Theaters.
+
+```{r}
+model42= lm(USRevenue~I(Theaters^2)+Opening+I(Ratings^2)+highrate+c+I(Theaters^2)*Opening, data=movies)
+summary(model42)
+# This model has the highest Adjusted R-squared so far (.9624).
+```
+
+Comparison with a simpler model:
+
+```{r}
+model41 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model41)
+```
+
+
+# Adding Release Month
+
+We consider the release month as a factor.
+
+```{r}
+movies$USReleaseMonth <- sub("^[0-9]+-", "", movies$USRelease)
+model40 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c+USReleaseMonth, data=movies)
+summary(model40)
+
+movies$jun <- ifelse(movies$USReleaseMonth == "Jun", 1, 0)
+model39 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c+jun, data=movies)
+summary(model39)
+```
+
+
+# Testing Interactions with Ratings^2
+
+```{r}
+model37   <- lm(USRevenue ~ Opening + I(Ratings^2)*c + highrate + jun, data = movies)
+model36 <- lm(USRevenue ~ Opening + I(Ratings^2)*jun + highrate + c, data = movies)
+model35_temp  <- lm(USRevenue ~ Opening + I(Ratings^2)*highrate + c + jun, data = movies)
+
+summary(model37)
+summary(model36)
+summary(model35_temp)
+
+# Compare against additive baseline
+model_base <- lm(USRevenue ~ Opening + I(Ratings^2) + highrate + c + jun, data = movies)
+anova(model_base, model35_temp)
+anova(model_base, model36)
+anova(model_base, model37)
+```
+
+
+
+# Model Diagnostics
+
+Checking for multicollinearity and ANOVA.
+
+```{r}
+library(car)
+vif(model39)
+
+anova(model39)
+
+anova(model39, model40)
+
+model38 = lm(USRevenue~Opening+I(Ratings^2)+highrate+c, data=movies)
+summary(model38)
+
+anova(model38, model39)
+```
+
+# Final Model Development
+
+Incorporating feedback: quadratic for Theaters, interactions.
+
+```{r}
+# Best model incorporating Theaters quadratic and interactions
+model35 <- lm(USRevenue ~ Theaters + I(Theaters^2) + Opening + Ratings + I(Ratings^2) + highrate + c + I(Theaters^2)*Opening + jun + jun*Opening, data = movies)
+summary(model35)
+
+anova(model38, model35)
+```
+
+# Conclusion
+
+Through iterative model building, starting from a full model, we addressed multicollinearity, tested transformations, added significant variables, and explored interactions. The final model (model35) includes quadratic terms for Theaters and Ratings, interactions, and key indicators, achieving a high adjusted R-squared.

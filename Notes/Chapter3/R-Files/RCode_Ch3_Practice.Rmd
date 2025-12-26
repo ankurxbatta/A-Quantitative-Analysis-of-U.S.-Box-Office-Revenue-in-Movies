@@ -1,0 +1,334 @@
+---
+title: "Chapter 3 Lecture Code"
+author: "DANA-4810"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Fitting the Model: The Method of Least Squares
+
+Example 3.3.1 Suppose an appliance store conducts a 5-month experiment to determine the effect of advertising on sales revenue. (Data set: ADSALES)
+
+
+ADSALES dataset
+Loading the ADSALES dataset
+```{r}
+ADSALES <-read.table("ADSALES.txt", header=TRUE)
+attach(ADSALES)
+View(ADSALES)
+head(ADSALES)
+```
+
+Example 3.3.1 Scatterplot
+Lecture Notes:Page 4
+```{r}
+plot(x=ADVEXP_X, y=SALES_Y, ylab = "Sales Revenue ($1000s)", xlab = "", 
+     main = "Scatterplot of Sales Revenue vs. Advertising Expenditure",
+     col="blue", ylim = c(0,5), xlim = c(0,6), pch=19)
+
+identify(x=ADVEXP_X, y=SALES_Y)
+```
+
+
+```{r}
+plot(x=, y=, ylab = "", xlab = "A", 
+     main = "Scatterplot of Sales Revenue vs. Advertising Expenditure",
+     col="blue", ylim = c(0,5), xlim = c(0,6), pch=19)
+
+abline(lm(~), col="Red", lty=1, lwd=2)
+#more Lines
+abline(a=-0.1, b=0.8, col="green")
+abline(a=0, b=.9, col="black")
+abline(a=0.1, b=0.5, col="darkviolet")
+legend("topleft", c("Regression Line"), cex = 0.7, fill = c("Red"))
+text(3, 2.5,expression ("y^ = -0.1 + 0.7x"))
+#adding segment and point
+segments(4,2, 4, 2.7, col="Black", lty = 2)
+points(4, 2.7, col="Black", pch=19)
+text(4.2, 3,expression (hat(y) ==2.7 ("Predicted y")))
+text(4.1, 1.7,expression (y ==2 ("Observed y")))
+```
+
+Example 3.3.1 Scatterplot
+
+Lecture Notes:Page 5
+```{r}
+#Regression
+model=lm(~)
+summary(model)
+plot(x=, y=, ylab = "", xlab = "", 
+     main = "Sales Revenue vs. Advertising Expenditure",
+     col="blue", ylim = c(0,5), xlim = c(0,6), pch=19)
+#adding Predicted points
+points(x=ADVEXP_X, y= predict(model), col="red",pch=19)
+legend("topleft", c("Predicted Sales Revenue","Observed Sales Revenue"), 
+       cex = 0.7, fill = c("Red","Blue"))
+```
+
+Predict sales revenue if \$400 and \$500 are spent on advertising.
+
+```{r}
+#Prediction
+New=data.frame(=c(,))
+predict(model,New)
+```
+
+## ANOVA Table + the estimation of the model parameters 
+Lecture Notes:Page 7
+
+```{r}
+anova(model)
+#The estimation of the model parameters 
+coef(model)
+```
+
+## Coefficient of Variation (CV)
+Lecture Notes:Page 9
+```{r}
+#CV
+
+s=sqrt(sum(model$residuals^2)/(length(SALES_Y) -2))
+s
+#or
+s=summary(model)$sigma
+s
+cv=(s/mean(SALES_Y))*100
+cv
+```
+## Rejection Region for the slope
+Lecture Notes:Page 12
+```{r}
+#Rejection Region for the slope
+library(mosaic)
+xct(0.95,3)
+```
+
+
+## Calculation of t-value
+```{r}
+#t-value
+qt(,, lower.tail = FALSE)
+```
+
+## 95% Confidence Intervals for Slope and Intercept
+```{r}
+#95% confidence intervals for the slope and intercept
+round(confint(model,level=0.95),3)
+detach(ADSALES)
+```
+Example 3.7.1 Refer to Example 3.1 from the textbook. (Data set: CASINO): CASINO dataset
+
+Loading the CASINO Dataset
+```{r}
+CASINO <-read.table("CASINO.txt", header=TRUE)
+attach(CASINO)
+View(CASINO)
+head(CASINO)
+```
+
+## Calculating Correlation Coefficient
+Lecture Notes:Page 16
+```{r}
+cor(x=, y=)
+```
+
+## Scatterplot of CASINO
+Lecture Notes:Page 16
+```{r}
+plot(x=EMPLOYEES, y=CRIMERAT, ylab = "Yearly Crime Rate",
+     xlab = "Number of Casino Employees (thousands)", 
+     main = "Crime Rate vs. Number of Casino Employees",
+     col="blue", ylim = c(1,4.5), xlim = c(15,40), pch=19)
+abline(lm(CRIMERAT~EMPLOYEES), col="Red", lty=1, lwd=2)
+```
+
+## Test for Correlation / Rho Test
+Lecture Notes:Page 16
+```{r}
+cor.test(x=, y=)
+detach(CASINO)
+```
+Example 3.7.2 Refer to Example 3.2 from the textbook. (Data set: TIRES): TIRES Dataset
+
+Loading TIRES dataset
+```{r}
+TIRES <-read.table("TIRES.txt", header=TRUE)
+attach(TIRES)
+head(TIRES)
+```
+
+## Scatterplot for TIRES dataset
+Lecture Notes:Page 17
+```{r}
+plot(x=PRESS_X, y=MILEAGE_Y, ylab = "Mileage (thousands)",
+     xlab = "Pressure (pounds per sq. inch)", 
+     main = "Scatterplot of Mileage vs. Pressure",
+     col="blue", ylim = c(24,40), xlim = c(29,38), pch=19)
+abline(lm(MILEAGE_Y~PRESS_X), col="Red", lty=1, lwd=2)
+```
+
+## Correlation test for tires dataset
+Lecture Notes:Page 17
+```{r}
+cor.test()
+detach(TIRES)
+```
+
+# ADSALES Dataset
+```{r}
+attach(ADSALES)
+```
+
+Example 3.9.1 for finding 95% Confidence Interval and 95% Prediction Interval
+Lecture Notes:Page 21
+```{r}
+##95% CI and PI
+model=lm(~)
+predict(model,newdata=data.frame(),
+        interval="confidence",level=0.95)
+
+predict(model,newdata=data.frame(ADVEXP_X=4),
+        interval="prediction",level=0.95)
+
+```
+## Plot for 95% CI and PI
+Lecture Notes:Page 21
+```{r}
+#95% CI and PI Plot
+plot(x=, y=, ylab = "Sales Revenue ($1000s)", xlab = "Advertising Expenditure ($100s)",
+     main="Regression",col="blue", ylim = c(-2,6), xlim = c(-2,7), pch=19)
+model=lm(~)
+abline(lm(~), col="Red", lty=1, lwd=2)
+
+newx <- seq(1, 5, by=0.005)
+CI=predict(,newdata=data.frame(),
+           interval="confidence",level=)
+
+PI=predict(,newdata=data.frame(),
+        interval="prediction",level=0.95)
+
+lines(newx, CI[ ,2], col="green", lty=2)
+lines(newx, CI[,3], col="green", lty=2)
+lines(newx, PI[,2], col="orange", lty=2)
+lines(newx, PI[,3], col="orange", lty=2)
+legend("topleft", c("95% confidence interval", "95% prediction interval"), 
+       cex = 0.7, fill = c("green", "orange"))
+```
+
+## Alternative way: using ggplot
+```{r}
+library("ggplot2")
+pred=predict(, interval = "")
+new_df = cbind(, )
+
+ggplot(new_df, aes(ADVEXP_X, SALES_Y))+
+        geom_point()+
+        geom_line(aes(y=lwr), color = "red", linetype = "dashed")+
+        geom_line(aes(y=upr), color = "red", linetype = "dashed")+
+        geom_smooth(method=lm, se=TRUE)
+
+```
+##A Complete Example
+
+Suppose a fire safety inspector wants to relate the amount of fire damage in major residential fires to the distance between the residence and the nearest fire station. The study is to be conducted in a large suburb of a major city; a sample of 15 recent fires in this suburb is selected.
+
+Loading the FIREDAM data set
+```{r}
+FIREDAM <-read.table("FIREDAM.txt", header=TRUE)
+attach(FIREDAM)
+View(FIREDAM)
+head(FIREDAM)
+```
+a) Create a scatter plot for the variables of interest and describe the plot.
+```{r}
+
+```
+b) fit the least squares line on this data set and provide the line in the context of the question.
+
+```{r}
+
+```
+$\widehat{DAMAGE} = 10.28+4.92 \times DISTANCE$
+
+b) Provide an interpretation of the slope estimate and intercept of the Least Square Regression Line in the context of the question.
+
+Slope: For every one mile increase in distance between the fired house and the nearest fire station, the average of the damage is estimated to increase by \$4920.
+
+Intercept: Is not appropriate since $x=0$ is not in the range of the data set.
+
+```{r}
+range(DISTANCE)
+```
+
+ c) Do you have sufficient evidence to conclude that there is a positive relationship between the two variables of interest.
+ 
+ $H_0: \rho =0$
+ 
+ $H_a: \rho >0$
+
+```{r}
+
+```
+Decision: Since $p-$value is very smaller than any value of $\alpha$, we have overwhelming evidence to reject $H_0$.
+Conclusion: At $\alpha =0.01$, we have sufficient evidence to conclude that there is a positive linear relationship between the amount of damage and the distance of all homes.
+
+d) Give a practical interpretation of the estimate of the standard deviation of the model.
+
+```{r}
+summary(model)$s
+```
+About 95% of the observed fire damage values will fall within approximately $2\times s = 4.64$ thousand dollars (\$4640) of their respective predicted values when using the least squares line.
+
+e) Calculate the coefficient of variation, $CV$ and explain the value.
+```{r}
+#CV
+
+
+```
+The coefficient of variation $C.V. = 8.77\%$ (also highlighted on the printout) indicates that $s$ is small relative to the mean fire damage in the sample.
+
+
+
+f) Interpret the value of the coefficient of determination for this model.
+
+```{r}
+#The coefficient of determination
+summary(model)$adj.r.squared
+
+```
+This value implies that about 92\% of the sample variation in fire damage is explained by the distance between the fire and the fire station in a straight-line model.
+
+
+g) Predict the amount of the damage for a house which is 3.5 miles away from the nearest fire station. Find the 90% prediction and confidence interval for the value.
+
+```{r}
+
+
+
+```
+
+We estimate, with 90\% confidence, that the interval from $26425$ to $28566$ encloses the average fire damage for all major residential fires which are 1.8 miles a way from the nearest fire station and interpret the result.
+
+Therefore, we predict (with 90\% confidence) that the fire damage for a major residential fire 3.5 miles from the nearest fire station will fall between $23256$ and $31735$.
+
+h) calculate the error of the prediction of the damage for a house which is 1.8 miles a way from the nearest fire station and interpret the result.
+
+```{r}
+New=data.frame(DISTANCE= c(1.8))
+yhat2= predict(model,New)
+yobserved = FIREDAM[which(FIREDAM$DISTANCE ==1.8),][,2]
+yobserved 
+
+
+Residual2=yobserved-yhat2
+Residual2
+#or
+residuals()[]
+
+##To identify an observation from a scatterplot
+plot(x=DISTANCE, y=DAMAGE)
+identify(x=DISTANCE, y=DAMAGE)
+FIREDAM[2,]
+```

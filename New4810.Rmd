@@ -1,0 +1,68 @@
+---
+title: "New 4810"
+output: html_document
+date: "2025-11-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+# Load the dataset
+movies <- read.csv('Movie.csv')
+head(movies)
+summary(movies)
+# Avoid View() in knitted output to prevent DataTables re-init issues
+if (interactive()) View(movies)
+movies <- head(movies, -1)
+tail(movies)
+options(scipen = 999)
+```
+
+#Scatterplots to examine correlation between numerical variables 
+```{r}
+pairs(~USRevenue+Budget+Opening+Theaters,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies")
+
+pairs(~USRevenue+Budget+Opening+Theaters+Ratings+Review+Minutes,data = movies, 
+      main="Scatterplot Matrix of Movies Complete") #to see multicollinearity 
+
+library(PerformanceAnalytics)
+
+chart.Correlation(movies[,c("USRevenue","Budget","Opening","Theaters", "Ratings", "Review", "Minutes")], histogram=FALSE,pch=19)
+```
+
+```{r}
+names(movies)
+
+s <- ifelse(movies$Sequel == 1, 1, 0)
+
+model55 = lm(USRevenue~Budget+Opening+Theaters+Ratings+Minutes+s+factor(Genre)+factor(Rating), data=movies)
+summary(model55)
+```
+#Checking for trends of categorical variables vs USRevenue
+```{r}
+aggregate(USRevenue ~ Sequel, data = movies, mean)
+aggregate(USRevenue ~ Genre, data = movies, mean)
+```
+#H0 : β1 = β2... = βk = 0
+#Ha : At least oneβi 6 = 0
+
+```{r}
+Sequel_model <- lm(USRevenue ~ Sequel, data = movies)
+anova(Sequel_model)
+```
+
+
+```{r}
+model54 = lm(USRevenue~s+factor(Genre)+factor(Rating), data=movies)
+summary(model54)
+```
+
+
